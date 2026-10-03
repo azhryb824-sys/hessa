@@ -73,9 +73,7 @@ export default function DashboardPage() {
         const result = await response.json();
 
         if (!result.success) {
-          throw new Error(
-            result.message || "Failed to load dashboard"
-          );
+          throw new Error(result.message || "Failed to load dashboard");
         }
 
         setData(result);
@@ -100,9 +98,7 @@ export default function DashboardPage() {
 
           <main className="p-6 lg:p-8">
             <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
-              <p className="text-slate-500">
-                جاري تحميل لوحة التعلم...
-              </p>
+              <p className="text-slate-500">جاري تحميل لوحة التعلم...</p>
             </div>
           </main>
         </div>
@@ -135,31 +131,22 @@ export default function DashboardPage() {
         ? "متقدم"
         : "متوسط";
 
-  const completedLessons =
-    data.statistics.completedLessons ?? 0;
+  const completedLessons = data.statistics.completedLessons ?? 0;
 
-  const totalLessons =
-    data.statistics.totalLessons ?? 0;
+  const totalLessons = data.statistics.totalLessons ?? 0;
 
   const lessonProgress =
-    totalLessons > 0
-      ? Math.round(
-          (completedLessons / totalLessons) * 100
-        )
-      : 0;
+    totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
 
   const dailyGoalMinutes = data.student.dailyMinutes;
 
-  const completedLessonMinutes =
-    data.statistics.totalLearningMinutes ?? 0;
+  const completedLessonMinutes = data.statistics.totalLearningMinutes ?? 0;
 
   const dailyGoalProgress =
     dailyGoalMinutes > 0
       ? Math.min(
           100,
-          Math.round(
-            (completedLessonMinutes / dailyGoalMinutes) * 100
-          )
+          Math.round((completedLessonMinutes / dailyGoalMinutes) * 100),
         )
       : 0;
 
@@ -168,14 +155,12 @@ export default function DashboardPage() {
     data.courses.find((course) => course.progress < 100) ??
     null;
 
-  const lastCompletedLesson =
-    data.lastCompletedLesson ?? null;
+  const lastCompletedLesson = data.lastCompletedLesson ?? null;
 
   const nextLessonSubject =
     nextCourse?.subject ||
     lastCompletedLesson?.course.subject ||
-    data.courses.find((course) => course.progress < 100)
-      ?.subject;
+    data.courses.find((course) => course.progress < 100)?.subject;
 
   const nextLessonOrder = lastCompletedLesson
     ? lastCompletedLesson.order + 1
@@ -183,7 +168,7 @@ export default function DashboardPage() {
 
   const continueLearningUrl = nextLessonSubject
     ? `/dashboard/lessons/subject?subject=${encodeURIComponent(
-        nextLessonSubject
+        nextLessonSubject,
       )}&order=${nextLessonOrder}`
     : "/dashboard/courses";
 
@@ -197,9 +182,7 @@ export default function DashboardPage() {
         <main className="p-6 lg:p-8">
           <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-600 to-violet-600 p-8 text-white shadow-lg">
             <div className="max-w-3xl">
-              <p className="mb-2 text-indigo-100">
-                مرحبًا بك في حصة 👋
-              </p>
+              <p className="mb-2 text-indigo-100">مرحبًا بك في حصة 👋</p>
 
               <h1 className="text-3xl font-bold lg:text-4xl">
                 أهلاً {data.student.name}
@@ -242,7 +225,7 @@ export default function DashboardPage() {
             />
 
             <StatCard
-              title="ساعات التعلم"
+              title="مدة الدروس المكتملة"
               value={`${data.student.totalHours}`}
               description="ساعة إجماليًا"
               icon="⏱️"
@@ -286,9 +269,7 @@ export default function DashboardPage() {
                 {totalLessons > 0 && (
                   <div>
                     <div className="mb-2 flex items-center justify-between text-sm">
-                      <span className="text-slate-600">
-                        الدروس المكتملة
-                      </span>
+                      <span className="text-slate-600">الدروس المكتملة</span>
 
                       <span className="font-bold text-indigo-700">
                         {completedLessons} / {totalLessons}
@@ -310,9 +291,7 @@ export default function DashboardPage() {
                   href={continueLearningUrl}
                   className="inline-flex w-fit items-center justify-center rounded-xl bg-indigo-600 px-6 py-3 font-medium text-white transition hover:bg-indigo-700"
                 >
-                  {lastCompletedLesson
-                    ? "متابعة التعلم ←"
-                    : "ابدأ التعلم ←"}
+                  {lastCompletedLesson ? "متابعة التعلم ←" : "ابدأ التعلم ←"}
                 </a>
               </div>
             </div>
@@ -334,17 +313,13 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="text-4xl">
-                  {dailyGoalProgress >= 100
-                    ? "🏆"
-                    : "🎯"}
+                  {dailyGoalProgress >= 100 ? "🏆" : "🎯"}
                 </div>
               </div>
 
               <div className="mt-6">
                 <div className="mb-2 flex items-center justify-between text-sm">
-                  <span className="text-slate-500">
-                    الإنجاز الحالي
-                  </span>
+                  <span className="text-slate-500">الإنجاز الحالي</span>
 
                   <span className="font-bold text-emerald-600">
                     {dailyGoalProgress}%
@@ -398,9 +373,7 @@ export default function DashboardPage() {
 
                       <p className="text-xs text-slate-500">
                         {course.completedLessons ?? 0} من{" "}
-                        {course.totalLessons ??
-                          course.lessonsCount}{" "}
-                        دروس مكتملة
+                        {course.totalLessons ?? course.lessonsCount} دروس مكتملة
                       </p>
                     </div>
 
@@ -434,8 +407,8 @@ export default function DashboardPage() {
                 </h2>
 
                 <p className="mt-2 max-w-2xl leading-7 text-slate-600">
-                  اسأل مدرس الذكاء الاصطناعي، واحصل على شرح يتناسب مع
-                  مستواك وطريقة تعلمك.
+                  اسأل مدرس الذكاء الاصطناعي، واحصل على شرح يتناسب مع مستواك
+                  وطريقة تعلمك.
                 </p>
               </div>
 
@@ -461,15 +434,9 @@ export default function DashboardPage() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                <MiniStat
-                  value={`${completedLessons}`}
-                  label="درس مكتمل"
-                />
+                <MiniStat value={`${completedLessons}`} label="درس مكتمل" />
 
-                <MiniStat
-                  value={`${totalLessons}`}
-                  label="إجمالي الدروس"
-                />
+                <MiniStat value={`${totalLessons}`} label="إجمالي الدروس" />
 
                 <MiniStat
                   value={`${data.student.learningStreak}`}
@@ -500,38 +467,22 @@ function StatCard({
       <div className="mb-4 flex items-center justify-between">
         <span className="text-2xl">{icon}</span>
 
-        <span className="text-sm text-slate-500">
-          {title}
-        </span>
+        <span className="text-sm text-slate-500">{title}</span>
       </div>
 
-      <div className="text-3xl font-bold text-slate-900">
-        {value}
-      </div>
+      <div className="text-3xl font-bold text-slate-900">{value}</div>
 
-      <div className="mt-1 text-sm text-slate-500">
-        {description}
-      </div>
+      <div className="mt-1 text-sm text-slate-500">{description}</div>
     </div>
   );
 }
 
-function MiniStat({
-  value,
-  label,
-}: {
-  value: string;
-  label: string;
-}) {
+function MiniStat({ value, label }: { value: string; label: string }) {
   return (
     <div className="min-w-[90px] rounded-xl bg-slate-50 px-4 py-3 text-center">
-      <div className="text-xl font-bold text-indigo-600">
-        {value}
-      </div>
+      <div className="text-xl font-bold text-indigo-600">{value}</div>
 
-      <div className="mt-1 text-xs text-slate-500">
-        {label}
-      </div>
+      <div className="mt-1 text-xs text-slate-500">{label}</div>
     </div>
   );
 }

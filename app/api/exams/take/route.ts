@@ -1,8 +1,11 @@
+import { requireStudent, requireEnrollment } from "@/lib/access";
+import { fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(request: NextRequest) {
   try {
+    const currentUser = await requireStudent();
     const examId = request.nextUrl.searchParams.get("id");
 
     if (!examId) {
@@ -11,7 +14,7 @@ export async function GET(request: NextRequest) {
           success: false,
           message: "Exam ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -37,10 +40,11 @@ export async function GET(request: NextRequest) {
           success: false,
           message: "Exam not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
+    await requireEnrollment(currentUser.id, assessment.courseId);
     const course = assessment.courseId
       ? await prisma.course.findUnique({
           where: {
@@ -90,17 +94,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Exam take API error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-      { status: 500 }
-    );
+    return fail(error);
   }
 }

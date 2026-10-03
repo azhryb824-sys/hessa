@@ -1,0 +1,1 @@
+UPDATE "AssessmentAttempt" SET "questionsSnapshot"=COALESCE((SELECT json_group_array(json_object('id',q."id",'question',q."question",'options',q."options",'correctAnswer',q."correctAnswer",'points',q."points")) FROM "AssessmentQuestion" q WHERE q."assessmentId"="AssessmentAttempt"."assessmentId"),'[]') WHERE "questionsSnapshot"='[]';

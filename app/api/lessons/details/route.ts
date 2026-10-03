@@ -1,76 +1,47 @@
+import { requireStudent, requireEnrollment } from "@/lib/access";
 import { prisma } from "@/lib/db/prisma";
-import { NextResponse } from "next/server";
-
+import { fail, HttpError } from "@/lib/http";
 export async function GET(request: Request) {
   try {
-    const { searchParams } = new URL(request.url);
-
-    const subject = searchParams.get("subject");
-    const orderParam = searchParams.get("order");
-
-    if (!subject || !orderParam) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Subject and order are required",
-        },
-        { status: 400 }
-      );
-    }
-
-    const order = Number(orderParam);
-
-    if (!Number.isInteger(order) || order < 1) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Invalid lesson order",
-        },
-        { status: 400 }
-      );
-    }
-
+    const user = await requireStudent();
+    const q = new URL(request.url).searchParams;
+    const id = q.get("id");
+    const courseId = q.get("courseId");
+    const subject = q.get("subject");
+    const order = Number(q.get("order"));
+    if (
+      !id &&
+      (!Number.isInteger(order) || order < 1 || (!subject && !courseId))
+    )
+      throw new HttpError(400, "معرف الدرس أو المادة وترتيب الدرس مطلوب");
     const lesson = await prisma.lesson.findFirst({
-      where: {
-        order,
-        course: {
-          subject,
-        },
-      },
-      include: {
-        course: {
-          select: {
-            id: true,
-            title: true,
-            subject: true,
+      where: id
+        ? { id }
+        : {
+            order,
+            course: {
+              ...(courseId ? { id: courseId } : { subject: subject! }),
+              enrollments: { some: { userId: user.id } },
+            },
           },
-        },
+      include: {
+        course: { select: { id: true, title: true, subject: true } },
+        progress: { where: { userId: user.id } },
       },
     });
-
-    if (!lesson) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Lesson not found",
-        },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      lesson,
-    });
-  } catch (error) {
-    console.error("Lesson details API error:", error);
-
-    return NextResponse.json(
+    if (!lesson) throw new HttpError(404, "الدرس غير موجود");
+    await requireEnrollment(user.id, lesson.courseId);
+    return Response.json(
       {
-        success: false,
-        message: "Failed to load lesson",
+        success: true,
+        lesson: {
+          ...lesson,
+          completed: lesson.progress.some((p) => p.completed),
+        },
       },
-      { status: 500 }
+      { headers: { "Cache-Control": "no-store" } },
     );
+  } catch (e) {
+    return fail(e);
   }
 }

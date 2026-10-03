@@ -1,3 +1,5 @@
+import { requireStudent, requireEnrollment } from "@/lib/access";
+import { fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 
@@ -7,11 +9,9 @@ type RouteContext = {
   }>;
 };
 
-export async function GET(
-  _request: Request,
-  context: RouteContext
-) {
+export async function GET(_request: Request, context: RouteContext) {
   try {
+    const currentUser = await requireStudent();
     const { id } = await context.params;
 
     const course = await prisma.course.findUnique({
@@ -38,10 +38,11 @@ export async function GET(
           success: false,
           message: "Course not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
+    await requireEnrollment(currentUser.id, course.id);
     return NextResponse.json({
       success: true,
       course: {
@@ -62,14 +63,6 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error("Course details API error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Failed to load course",
-      },
-      { status: 500 }
-    );
+    return fail(error);
   }
 }

@@ -98,9 +98,7 @@ export default function ExamsPage() {
   }
 
   const recommendedExam =
-    data.exams.find((exam) => !exam.completed) ??
-    data.exams[0] ??
-    null;
+    data.exams.find((exam) => !exam.completed) ?? data.exams[0] ?? null;
 
   return (
     <div dir="rtl" className="min-h-screen bg-slate-50">
@@ -173,17 +171,15 @@ export default function ExamsPage() {
                   onClick={() => {
                     window.location.href = recommendedExam.completed
                       ? `/dashboard/exams/result?id=${encodeURIComponent(
-                          recommendedExam.latestAttempt?.id ?? ""
+                          recommendedExam.latestAttempt?.id ?? "",
                         )}`
                       : `/dashboard/exams/take?id=${encodeURIComponent(
-                          recommendedExam.id
+                          recommendedExam.id,
                         )}`;
                   }}
                   className="shrink-0 rounded-2xl bg-white px-7 py-4 font-bold text-indigo-600 transition hover:bg-indigo-50"
                 >
-                  {recommendedExam.completed
-                    ? "عرض النتيجة"
-                    : "بدء الاختبار"}
+                  {recommendedExam.completed ? "عرض النتيجة" : "بدء الاختبار"}
                 </button>
               </div>
             </section>
@@ -238,17 +234,14 @@ export default function ExamsPage() {
                             </h3>
 
                             <p className="mt-2 text-sm text-slate-400">
-                              {exam.questions} أسئلة ·{" "}
-                              {exam.totalPoints} درجات
+                              {exam.questions} أسئلة · {exam.totalPoints} درجات
                             </p>
                           </div>
                         </div>
 
                         <div className="flex flex-wrap items-center gap-5">
                           <div>
-                            <p className="text-xs text-slate-400">
-                              النتيجة
-                            </p>
+                            <p className="text-xs text-slate-400">النتيجة</p>
 
                             <p
                               className={`mt-1 font-black ${
@@ -278,10 +271,10 @@ export default function ExamsPage() {
                             onClick={() => {
                               window.location.href = completed
                                 ? `/dashboard/exams/result?id=${encodeURIComponent(
-                                    exam.latestAttempt?.id ?? ""
+                                    exam.latestAttempt?.id ?? "",
                                   )}`
                                 : `/dashboard/exams/take?id=${encodeURIComponent(
-                                    exam.id
+                                    exam.id,
                                   )}`;
                             }}
                             className="rounded-xl bg-slate-900 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-600"
@@ -307,9 +300,8 @@ export default function ExamsPage() {
             </h2>
 
             <p className="mt-3 max-w-3xl leading-8 text-slate-600">
-              سيحلل محرك حصة إجابات الطالب والأخطاء المتكررة
-              والموضوعات التي تحتاج إلى مراجعة، ثم يستخدم النتائج
-              لتحديث خطة التعلم الشخصية.
+              سيحلل محرك حصة إجابات الطالب والأخطاء المتكررة والموضوعات التي
+              تحتاج إلى مراجعة، ثم يستخدم النتائج لتحديث خطة التعلم الشخصية.
             </p>
           </section>
         </main>
@@ -330,16 +322,12 @@ function Stat({
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-bold text-slate-500">
-          {title}
-        </span>
+        <span className="text-sm font-bold text-slate-500">{title}</span>
 
         <span className="text-xl">{icon}</span>
       </div>
 
-      <p className="mt-4 text-3xl font-black text-slate-900">
-        {value}
-      </p>
+      <p className="mt-4 text-3xl font-black text-slate-900">{value}</p>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 type Question = {
@@ -25,6 +25,7 @@ function ExamTakeContent() {
   const [examId, setExamId] = useState<string | null>(null);
   const [exam, setExam] = useState<Exam | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const submissionKey = useRef<string>("");
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -33,12 +34,14 @@ function ExamTakeContent() {
     const id = new URLSearchParams(window.location.search).get("id");
 
     if (!id) {
-      setError("معرف الاختبار غير موجود.");
-      setLoading(false);
+      queueMicrotask(() => {
+        setError("معرف الاختبار غير موجود.");
+        setLoading(false);
+      });
       return;
     }
 
-    setExamId(id);
+    queueMicrotask(() => setExamId(id));
 
     async function loadExam() {
       try {
@@ -46,7 +49,7 @@ function ExamTakeContent() {
           `/api/exams/take?id=${encodeURIComponent(String(id))}`,
           {
             cache: "no-store",
-          }
+          },
         );
 
         const data = await response.json();
@@ -58,9 +61,7 @@ function ExamTakeContent() {
         setExam(data.exam);
       } catch (err) {
         setError(
-          err instanceof Error
-            ? err.message
-            : "حدث خطأ أثناء تحميل الاختبار."
+          err instanceof Error ? err.message : "حدث خطأ أثناء تحميل الاختبار.",
         );
       } finally {
         setLoading(false);
@@ -86,7 +87,7 @@ function ExamTakeContent() {
 
     if (answeredCount !== exam.questions.length) {
       const confirmed = window.confirm(
-        `لقد أجبت عن ${answeredCount} من ${exam.questions.length} أسئلة.\n\nهل تريد تسليم الاختبار رغم وجود أسئلة بدون إجابة؟`
+        `لقد أجبت عن ${answeredCount} من ${exam.questions.length} أسئلة.\n\nهل تريد تسليم الاختبار رغم وجود أسئلة بدون إجابة؟`,
       );
 
       if (!confirmed) return;
@@ -102,6 +103,9 @@ function ExamTakeContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
+          submissionKey:
+            submissionKey.current ||
+            (submissionKey.current = crypto.randomUUID()),
           assessmentId: exam.id,
           answers,
         }),
@@ -115,14 +119,12 @@ function ExamTakeContent() {
 
       router.push(
         `/dashboard/exams/result?id=${encodeURIComponent(
-          String(data.attemptId)
-        )}`
+          String(data.attemptId),
+        )}`,
       );
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
-          : "حدث خطأ أثناء تسليم الاختبار."
+        err instanceof Error ? err.message : "حدث خطأ أثناء تسليم الاختبار.",
       );
       setSubmitting(false);
     }
@@ -200,9 +202,7 @@ function ExamTakeContent() {
                 {answeredCount}/{exam.questions.length}
               </div>
 
-              <div className="text-xs text-slate-500">
-                الأسئلة المجابة
-              </div>
+              <div className="text-xs text-slate-500">الأسئلة المجابة</div>
             </div>
           </div>
 
@@ -250,9 +250,7 @@ function ExamTakeContent() {
                     <button
                       key={`${question.id}-${optionIndex}`}
                       type="button"
-                      onClick={() =>
-                        selectAnswer(question.id, option)
-                      }
+                      onClick={() => selectAnswer(question.id, option)}
                       className={`flex w-full items-center gap-4 rounded-2xl border p-4 text-right transition ${
                         selected
                           ? "border-blue-500 bg-blue-50"
@@ -271,9 +269,7 @@ function ExamTakeContent() {
 
                       <span
                         className={`text-sm font-medium ${
-                          selected
-                            ? "text-blue-900"
-                            : "text-slate-700"
+                          selected ? "text-blue-900" : "text-slate-700"
                         }`}
                       >
                         {option}
@@ -310,9 +306,7 @@ function ExamTakeContent() {
               disabled={submitting}
               className="rounded-2xl bg-blue-600 px-8 py-4 font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting
-                ? "جاري تسليم الاختبار..."
-                : "تسليم الاختبار"}
+              {submitting ? "جاري تسليم الاختبار..." : "تسليم الاختبار"}
             </button>
           </div>
         </section>
