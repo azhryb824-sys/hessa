@@ -1,3 +1,4 @@
+import { hashPassword } from "../lib/password";
 import "dotenv/config";
 import {
   PrismaClient,
@@ -10,7 +11,7 @@ import {
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 
 const adapter = new PrismaBetterSqlite3({
-  url: process.env.DATABASE_URL!,
+  url: process.env.DATABASE_URL || "file:./prisma/dev.db",
 });
 
 const prisma = new PrismaClient({
@@ -18,17 +19,25 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log("🌱 Starting Hessa seed...");
+  const bootstrap = process.env.HESSA_BOOTSTRAP_PASSWORD;
+  if (!bootstrap || bootstrap.length < 12)
+    throw new Error(
+      "Set HESSA_BOOTSTRAP_PASSWORD to 12+ characters before seeding",
+    );
+  const password = hashPassword(bootstrap);
+  console.log("Starting Hessa educational content seed");
 
   const teacher = await prisma.user.upsert({
     where: {
       email: "teacher@hessa.local",
     },
-    update: {},
+    update: { password, gender: "MALE", birthDate: new Date("2005-01-01") },
     create: {
       name: "أستاذ حصة",
       email: "teacher@hessa.local",
-      password: "demo-password",
+      password,
+      gender: "MALE",
+      birthDate: new Date("2005-01-01"),
       role: UserRole.TEACHER,
     },
   });
@@ -37,19 +46,21 @@ async function main() {
     where: {
       email: "student@hessa.local",
     },
-    update: {},
+    update: { password, gender: "MALE", birthDate: new Date("2005-01-01") },
     create: {
       name: "طالب حصة",
       email: "student@hessa.local",
-      password: "demo-password",
+      password,
+      gender: "MALE",
+      birthDate: new Date("2005-01-01"),
       role: UserRole.STUDENT,
       studentProfile: {
         create: {
           learningLevel: LearningLevel.INTERMEDIATE,
           learningGoal: "تحسين المستوى الدراسي وبناء خطة تعلم شخصية",
           dailyMinutes: 45,
-          learningStreak: 7,
-          totalHours: 18.5,
+          learningStreak: 0,
+          totalHours: 0,
         },
       },
     },
@@ -58,6 +69,21 @@ async function main() {
     },
   });
 
+  for (const role of ["ADMIN", "PARENT"] as const) {
+    const email = role.toLowerCase() + "@hessa.local";
+    await prisma.user.upsert({
+      where: { email },
+      update: {},
+      create: {
+        name: role === "ADMIN" ? "مشرف حصة" : "ولي أمر حصة",
+        email,
+        password,
+        role,
+        gender: "MALE",
+        birthDate: new Date("1990-01-01"),
+      },
+    });
+  }
   const courses = [
     {
       title: "الرياضيات",
@@ -84,13 +110,15 @@ async function main() {
   for (const courseData of courses) {
     const course = await prisma.course.upsert({
       where: {
-        id: `${teacher.id}-${courseData.subject === "الرياضيات"
-  ? "math"
-  : courseData.subject === "اللغة الإنجليزية"
-    ? "english"
-    : courseData.subject === "العلوم"
-      ? "science"
-      : "arabic"}`,
+        id: `${teacher.id}-${
+          courseData.subject === "الرياضيات"
+            ? "math"
+            : courseData.subject === "اللغة الإنجليزية"
+              ? "english"
+              : courseData.subject === "العلوم"
+                ? "science"
+                : "arabic"
+        }`,
       },
       update: {
         title: courseData.title,
@@ -99,13 +127,15 @@ async function main() {
         status: CourseStatus.PUBLISHED,
       },
       create: {
-        id: `${teacher.id}-${courseData.subject === "الرياضيات"
-  ? "math"
-  : courseData.subject === "اللغة الإنجليزية"
-    ? "english"
-    : courseData.subject === "العلوم"
-      ? "science"
-      : "arabic"}`,
+        id: `${teacher.id}-${
+          courseData.subject === "الرياضيات"
+            ? "math"
+            : courseData.subject === "اللغة الإنجليزية"
+              ? "english"
+              : courseData.subject === "العلوم"
+                ? "science"
+                : "arabic"
+        }`,
         title: courseData.title,
         description: courseData.description,
         subject: courseData.subject,
@@ -168,14 +198,7 @@ async function main() {
       create: {
         userId: student.id,
         courseId: course.id,
-        progress:
-          courseData.subject === "الرياضيات"
-            ? 72
-            : courseData.subject === "اللغة الإنجليزية"
-              ? 58
-              : courseData.subject === "العلوم"
-                ? 41
-                : 64,
+        progress: 0,
       },
     });
   }

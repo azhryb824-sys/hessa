@@ -55,3 +55,6 @@ coverage/
 *.sqlite*
 *.log
 *.zip
+
+/storage/
+/qa/

@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# منصة حصة
 
-## Getting Started
+منصة عربية للتعلّم، مبنية على Next.js وPrisma وSQLite. الحسابات والصلاحيات، الدروس والاختبارات، خطط التعلم، الواجبات والحصص وتقارير ولي الأمر تعمل ببيانات محفوظة.
 
-First, run the development server:
+## التشغيل المحلي
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+يتطلب Node.js 22 أو أحدث. من مجلد المشروع:
+
+```powershell
+npm ci
+# للمشروع الجديد فقط؛ حافظ على ملف البيئة الموجود عند التحديث
+Copy-Item .env.example .env
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+اضبط DATABASE_URL في `.env` على مسار قاعدة بياناتك الحقيقي، وحدد كلمة مرور تهيئة خاصة من 12 حرفاً أو أكثر في HESSA_BOOTSTRAP_PASSWORD. لا ترفع ملف البيئة أو قاعدة البيانات إلى GitHub.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```powershell
+npm run db:backup
+npm run setup
+npm run dev
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+افتح http://localhost:3000. حسابات التجربة: `student@hessa.local` و`teacher@hessa.local` و`admin@hessa.local` و`parent@hessa.local`، وكلمة المرور هي كلمة التهيئة التي اخترتها. تشغيل seed يعيد كلمة مرور حسابَي الطالب والمعلم التجريبيين؛ استخدمه للتهيئة والتجربة، وليس ضمن كل نشر إنتاجي. المستخدمون الحقيقيون ينشئون حساب طالب أو يضيفهم المسؤول.
 
-## Learn More
+## تحديث نسخة موجودة
 
-To learn more about Next.js, take a look at the following resources:
+أوقف الخادم أولاً. احتفظ بملف البيئة ومسار قاعدة البيانات الحالي. لا تحذف قاعدة البيانات ولا تستخدم migrate reset.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```powershell
+git fetch origin
+git switch improve-platform-20261003
+npm ci
+npm run db:backup
+npm run db:generate
+npm run db:deploy
+npm run build
+npm start
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+إذا كانت لديك تعديلات محلية، احفظها في commit قبل تبديل الفرع. migration يحافظ على المحاولات القديمة ويثبت نصوص الأسئلة ودرجاتها. انسخ أيضاً مجلد التسجيلات الخاص عند أخذ نسخة احتياطية.
 
-## Deploy on Vercel
+## الإمكانات
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- جلسات دخول محفوظة بشكل آمن وكلمات مرور مشفرة، وفصل بيانات المستخدمين والتحقق من ملكية الموارد.
+- إكمال الدروس والتقدم الفعلي؛ محاولات اختبارات محدودة وتسليم لا يتكرر؛ نتائج تاريخية مستقلة عن تعديل السؤال لاحقاً.
+- تحليل إتقان يأخذ حداثة الإجابات وحجم الأدلة في الحسبان، وخطط محفوظة تتناسب مع وقت الدراسة.
+- مساعد تعليمي محفوظ المحادثة. عند غياب مفتاح الخدمة يعمل موجّه محلي معلن، ولا يدّعي أنه نموذج لغوي.
+- أدوات للمعلم والمسؤول، تقارير للأبناء المرتبطين، واجبات وتسليم وتصحيح، حجز حصص ومتابعة حضور.
+- فصل مباشر حتى 8 طلاب: فيديو، مشاركة شاشة، سبورة، محادثة، رفع يد، استطلاع، ملفات وتسجيل يختاره المعلم.
+- خطط اشتراك وسجلات فواتير داخلية وتأكيد تحويل بنكي يدوي؛ يمكن تفعيل حجب الوصول بعد التجربة بواسطة BILLING_ENFORCED.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## التحقق
+
+```sh
+npm run lint
+npm test
+npm run build
+```
+
+اختبارات التشغيل تنشئ مستخدمين وحجوزات وسجلات: استخدم قاعدة اختبار منفصلة فقط، واضبط HESSA_TEST_MODE=1 وكلمة التهيئة، ثم `npm run setup` و`npm run verify:runtime`. لا تشغلها على بيانات الإنتاج. لاختبارات الواجهة ثبت Chromium بواسطة `npx playwright install chromium` ثم `npm run test:browser`.
+
+## ما يلزم قبل الإطلاق العام
+
+1. تفعيل HTTPS وضبط APP_URL وSESSION_SECURE=true؛ SQLite والتسجيلات يحتاجان تخزيناً دائماً ونسخة خادم واحدة حالياً.
+2. ضبط OPENAI_API_KEY وOPENAI_MODEL لنموذج متاح في حسابك. تحسين التحليل هنا لا يعني تدريب أوزان نموذج جديد؛ الاستدعاءات الخارجية لم تختبر بمفتاح حقيقي.
+3. ضبط TURN/STUN واختبار الفيديو بين شبكات وأجهزة حقيقية. الفصول الأكبر تحتاج خدمة SFU أو رابط اجتماع خارجي.
+4. الاشتراكات الحالية بتأكيد إداري؛ الدفع بالبطاقة والفواتير الضريبية وربط مزود دفع لم تنفذ.
+5. استعادة كلمة المرور حالياً بواسطة المسؤول. البريد الآلي والتنبيهات المجدولة وتطبيقات المتاجر الأصلية تحتاج تكاملات إضافية. ملف manifest يقدم واجهة قابلة للتثبيت، دون دعم العمل بلا إنترنت.
+6. مراجعة المحتوى التعليمي وحقوقه، سياسة الخصوصية واحتفاظ التسجيلات، واختبار الحمل قبل اعتماد إنتاج واسع.
+
+لا يرسل النظام كلمات المرور أو مفاتيح الخدمة إلى المتصفح. ملفات الحصة والتسجيلات محمية بالدخول وعضوية الحصة.

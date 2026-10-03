@@ -46,6 +46,8 @@ model User {
   email     String   @unique
   password  String
   role      UserRole @default(STUDENT)
+  gender    String?
+  birthDate DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -54,6 +56,9 @@ model User {
   enrollments    Enrollment[]
   attempts       AssessmentAttempt[]
   lessonProgress LessonProgress[]
+  sessions Session[]
+  plans LearningPlan[]
+  chatMessages ChatMessage[]
 }
 
 model StudentProfile {
@@ -81,6 +86,7 @@ model Course {
   teacher     User         @relation("TeacherCourses", fields: [teacherId], references: [id])
   lessons     Lesson[]
   enrollments Enrollment[]
+  assessments Assessment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -93,6 +99,7 @@ model Lesson {
   type        LessonType @default(VIDEO)
   duration    Int        @default(0)
   order       Int
+  content     String @default("")
   courseId    String
 
   course   Course           @relation(fields: [courseId], references: [id], onDelete: Cascade)
@@ -100,6 +107,8 @@ model Lesson {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([courseId, order])
 }
 
 model Enrollment {
@@ -121,6 +130,8 @@ model Assessment {
   description String?
   type        AssessmentType
   courseId    String?
+  course      Course? @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  maxAttempts Int @default(3)
   questions   AssessmentQuestion[]
   attempts    AssessmentAttempt[]
 
@@ -146,6 +157,10 @@ model AssessmentAttempt {
   completedAt  DateTime?
   userId       String
   assessmentId String
+  submissionKey String @unique @default(cuid())
+  totalPoints Int @default(0)
+  totalQuestions Int @default(0)
+  questionsSnapshot String @default("[]")
 
   user       User               @relation(fields: [userId], references: [id], onDelete: Cascade)
   assessment Assessment         @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
@@ -160,12 +175,187 @@ model AssessmentAnswer {
   correctAnswer String?
   isCorrect     Boolean  @default(false)
   pointsAwarded Int      @default(0)
+  questionText String @default("")
+  optionsSnapshot String?
+  maxPoints Int @default(1)
   createdAt     DateTime @default(now())
 
   attempt  AssessmentAttempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question AssessmentQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
 
   @@unique([attemptId, questionId])
+}
+
+model Session {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  @@index([userId])
+}
+
+model LearningPlan {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  data String
+  engineVersion String
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model ChatMessage {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role String
+  content String
+  createdAt DateTime @default(now())
+  @@index([userId, createdAt])
+}
+
+model ParentLink {
+  id String @id @default(cuid())
+  parentId String
+  studentId String
+  @@unique([parentId, studentId])
+}
+
+model ClassSession {
+  id String @id @default(cuid())
+  courseId String
+  teacherId String
+  title String
+  startsAt DateTime
+  duration Int
+  capacity Int @default(1)
+  meetingUrl String?
+  status String @default("SCHEDULED")
+  bookings ClassBooking[]
+  createdAt DateTime @default(now())
+  @@index([teacherId, startsAt])
+}
+
+model ClassBooking {
+  id String @id @default(cuid())
+  classId String
+  session ClassSession @relation(fields: [classId], references: [id], onDelete: Cascade)
+  studentId String
+  attended Boolean @default(false)
+  createdAt DateTime @default(now())
+  @@unique([classId, studentId])
+}
+
+model ClassPresence {
+  id String @id @default(cuid())
+  classId String
+  userId String
+  lastSeen DateTime @default(now())
+  @@unique([classId, userId])
+}
+
+model ClassEvent {
+  id Int @id @default(autoincrement())
+  classId String
+  senderId String
+  toUserId String?
+  type String
+  data String
+  createdAt DateTime @default(now())
+  @@index([classId, id])
+}
+
+model ClassFile {
+  id String @id @default(cuid())
+  classId String
+  senderId String
+  name String
+  mimeType String
+  data Bytes
+  createdAt DateTime @default(now())
+}
+
+model ClassRecording {
+  id String @id
+  classId String
+  teacherId String
+  name String
+  sizeBytes Int
+  createdAt DateTime @default(now())
+  @@index([classId])
+}
+
+model Assignment {
+  id String @id @default(cuid())
+  courseId String
+  teacherId String
+  title String
+  instructions String
+  dueAt DateTime
+  maxPoints Int @default(100)
+  submissions AssignmentSubmission[]
+  createdAt DateTime @default(now())
+}
+
+model AssignmentSubmission {
+  id String @id @default(cuid())
+  assignmentId String
+  assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  studentId String
+  answer String
+  score Int?
+  feedback String?
+  submittedAt DateTime @default(now())
+  @@unique([assignmentId, studentId])
+}
+
+model RateLimit {
+  key String @id
+  count Int
+  windowEnd DateTime
+}
+
+model AuditLog {
+  id String @id @default(cuid())
+  actorId String
+  action String
+  entityId String?
+  createdAt DateTime @default(now())
+}
+
+model BillingPlan {
+  id String @id @default(cuid())
+  name String
+  priceHalalas Int
+  durationDays Int
+  active Boolean @default(true)
+  invoices BillingInvoice[]
+}
+
+model BillingInvoice {
+  id String @id @default(cuid())
+  userId String
+  planId String
+  plan BillingPlan @relation(fields: [planId], references: [id])
+  amountHalalas Int
+  durationDays Int
+  status String @default("PENDING")
+  paymentReference String?
+  paidAt DateTime?
+  createdAt DateTime @default(now())
+  subscription Subscription?
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id String @id @default(cuid())
+  userId String
+  invoiceId String @unique
+  invoice BillingInvoice @relation(fields: [invoiceId], references: [id])
+  startsAt DateTime
+  expiresAt DateTime
+  @@index([userId, expiresAt])
 }
 
 model LessonProgress {

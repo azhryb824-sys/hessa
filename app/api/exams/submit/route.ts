@@ -1,195 +1,114 @@
+import { requireStudent, requireEnrollment } from "@/lib/access";
 import { prisma } from "@/lib/db/prisma";
-import { NextRequest, NextResponse } from "next/server";
-
-export async function POST(request: NextRequest) {
+import { fail, HttpError, readBody, cleanText, rateLimit } from "@/lib/http";
+export async function POST(request: Request) {
   try {
-    const body = await request.json();
-
-    const assessmentId = body.assessmentId;
-    const answers = body.answers;
-
-    if (!assessmentId) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Assessment ID is required",
-        },
-        { status: 400 }
-      );
-    }
-
-    if (!answers || typeof answers !== "object" || Array.isArray(answers)) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Answers are required",
-        },
-        { status: 400 }
-      );
-    }
-
-    const student = await prisma.user.findUnique({
-      where: {
-        email: "student@hessa.local",
-      },
+    const user = await requireStudent();
+    const b = await readBody(request);
+    await rateLimit(`exam:${user.id}`, 15);
+    const assessmentId = cleanText(b.assessmentId, 200);
+    const submissionKey = cleanText(b.submissionKey, 100);
+    const answers = b.answers;
+    if (
+      !assessmentId ||
+      !submissionKey ||
+      !answers ||
+      typeof answers !== "object" ||
+      Array.isArray(answers)
+    )
+      throw new HttpError(400, "بيانات التسليم غير مكتملة");
+    const exam = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      include: { questions: true },
     });
-
-    if (!student) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Student not found",
-        },
-        { status: 404 }
-      );
-    }
-
-    const assessment = await prisma.assessment.findUnique({
-      where: {
-        id: assessmentId,
-      },
-      include: {
-        questions: {
-          select: {
-            id: true,
-            question: true,
-            correctAnswer: true,
-            points: true,
-          },
-        },
-      },
-    });
-
-    if (!assessment) {
-      return NextResponse.json(
-        {
-          success: false,
-          message: "Exam not found",
-        },
-        { status: 404 }
-      );
-    }
-
-    let earnedPoints = 0;
-    let totalPoints = 0;
-
-    for (const question of assessment.questions) {
-      totalPoints += question.points;
-    }
-
-    const answerRecords: Array<{
-      questionId: string;
-      studentAnswer: string;
-      correctAnswer: string | null;
-      isCorrect: boolean;
-      pointsAwarded: number;
-    }> = [];
-
-    for (const question of assessment.questions) {
-      const rawStudentAnswer = answers[question.id];
-
-      const hasAnswer =
-        rawStudentAnswer !== undefined &&
-        rawStudentAnswer !== null &&
-        String(rawStudentAnswer).trim() !== "";
-
-      if (!hasAnswer) {
-        continue;
-      }
-
-      const studentAnswer = String(rawStudentAnswer).trim();
-
-      const correctAnswer =
-        question.correctAnswer !== null
-          ? String(question.correctAnswer).trim()
-          : null;
-
+    if (!exam) throw new HttpError(404, "الاختبار غير موجود");
+    await requireEnrollment(user.id, exam.courseId);
+    if (!exam.questions.length)
+      throw new HttpError(409, "الاختبار لم يجهز بعد");
+    const values = answers as Record<string, unknown>;
+    if (
+      Object.keys(values).some((k) => !exam.questions.some((q) => q.id === k))
+    )
+      throw new HttpError(400, "إجابة لسؤال غير موجود");
+    const records = exam.questions.flatMap((q) => {
+      const value = values[q.id];
+      if (value === undefined || value === null || value === "") return [];
+      if (typeof value !== "string" || value.length > 2000)
+        throw new HttpError(400, "صيغة الإجابة غير صحيحة");
+      const studentAnswer = value.trim();
       const isCorrect =
-        correctAnswer !== null &&
-        studentAnswer === correctAnswer;
-
-      const pointsAwarded = isCorrect ? question.points : 0;
-
-      if (isCorrect) {
-        earnedPoints += question.points;
-      }
-
-      answerRecords.push({
-        questionId: question.id,
-        studentAnswer,
-        correctAnswer,
-        isCorrect,
-        pointsAwarded,
-      });
-    }
-
-    const score =
-      totalPoints > 0
-        ? Math.round((earnedPoints / totalPoints) * 100)
-        : 0;
-
-    const answeredQuestions = answerRecords.length;
-
-    const result = await prisma.$transaction(async (tx) => {
-      const attempt = await tx.assessmentAttempt.create({
-        data: {
-          userId: student.id,
-          assessmentId: assessment.id,
-          score,
-          completedAt: new Date(),
+        q.correctAnswer !== null && studentAnswer === q.correctAnswer.trim();
+      return [
+        {
+          questionId: q.id,
+          questionText: q.question,
+          optionsSnapshot: q.options,
+          maxPoints: q.points,
+          studentAnswer,
+          correctAnswer: q.correctAnswer,
+          isCorrect,
+          pointsAwarded: isCorrect ? q.points : 0,
         },
-      });
-
-      for (const answer of answerRecords) {
-        await tx.assessmentAnswer.create({
-          data: {
-            attemptId: attempt.id,
-            questionId: answer.questionId,
-            studentAnswer: answer.studentAnswer,
-            correctAnswer: answer.correctAnswer,
-            isCorrect: answer.isCorrect,
-            pointsAwarded: answer.pointsAwarded,
-          },
-        });
-      }
-
-      return attempt;
+      ];
     });
-
-    return NextResponse.json(
-      {
-        success: true,
-        attemptId: result.id,
-
-        result: {
-          score,
-          earnedPoints,
-          totalPoints,
-          answeredQuestions,
-          totalQuestions: assessment.questions.length,
-        },
-
-        answers: answerRecords,
-      },
-      {
-        headers: {
-          "Content-Type": "application/json; charset=utf-8",
-          "Cache-Control": "no-store, no-cache, must-revalidate",
-        },
+    if (!records.length) throw new HttpError(400, "أجب عن سؤال واحد على الأقل");
+    const totalPoints = exam.questions.reduce((s, q) => s + q.points, 0);
+    const earnedPoints = records.reduce((s, a) => s + a.pointsAwarded, 0);
+    const attempt = await prisma.$transaction(async (tx) => {
+      const previous = await tx.assessmentAttempt.findUnique({
+        where: { submissionKey },
+        include: { answers: true },
+      });
+      if (previous) {
+        if (
+          previous.userId !== user.id ||
+          previous.assessmentId !== assessmentId
+        )
+          throw new HttpError(409, "معرف التسليم مستخدم");
+        return previous;
       }
-    );
-  } catch (error) {
-    console.error("Exam submit API error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error),
+      const count = await tx.assessmentAttempt.count({
+        where: { userId: user.id, assessmentId },
+      });
+      if (count >= exam.maxAttempts)
+        throw new HttpError(409, "وصلت إلى الحد الأقصى للمحاولات");
+      return tx.assessmentAttempt.create({
+        data: {
+          userId: user.id,
+          assessmentId,
+          submissionKey,
+          totalPoints,
+          totalQuestions: exam.questions.length,
+          questionsSnapshot: JSON.stringify(
+            exam.questions.map((q) => ({
+              id: q.id,
+              question: q.question,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              points: q.points,
+            })),
+          ),
+          score: totalPoints
+            ? Math.round((100 * earnedPoints) / totalPoints)
+            : 0,
+          completedAt: new Date(),
+          answers: { create: records },
+        },
+        include: { answers: true },
+      });
+    });
+    return Response.json({
+      success: true,
+      attemptId: attempt.id,
+      result: {
+        score: attempt.score,
+        earnedPoints: attempt.answers.reduce((s, a) => s + a.pointsAwarded, 0),
+        totalPoints: attempt.totalPoints,
+        answeredQuestions: attempt.answers.length,
+        totalQuestions: attempt.totalQuestions,
       },
-      { status: 500 }
-    );
+    });
+  } catch (e) {
+    return fail(e);
   }
 }

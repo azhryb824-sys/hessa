@@ -17,7 +17,7 @@ export async function GET() {
         success: false,
         database: "disconnected",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

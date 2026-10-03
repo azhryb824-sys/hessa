@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Sidebar from "@/components/dashboard/Sidebar";
 import Header from "@/components/dashboard/Header";
@@ -24,6 +25,7 @@ type Course = {
 };
 
 export default function CoursesPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -109,9 +111,7 @@ export default function CoursesPage() {
 
                     <div className="mt-5">
                       <div className="mb-2 flex items-center justify-between text-sm">
-                        <span className="text-slate-500">
-                          نسبة الإنجاز
-                        </span>
+                        <span className="text-slate-500">نسبة الإنجاز</span>
 
                         <span className="font-bold text-indigo-600">
                           {course.progress}%
@@ -127,17 +127,18 @@ export default function CoursesPage() {
                     </div>
 
                     <div className="mt-5 flex items-center justify-between text-sm text-slate-500">
-                      <span>
-                        {course.lessonsCount} دروس
-                      </span>
+                      <span>{course.lessonsCount} دروس</span>
 
-                      <span>
-                        {course.teacher}
-                      </span>
+                      <span>{course.teacher}</span>
                     </div>
 
                     <button
                       type="button"
+                      onClick={() =>
+                        router.push(
+                          `/dashboard/courses/subject?subject=${encodeURIComponent(course.subject)}`,
+                        )
+                      }
                       className="mt-5 w-full rounded-xl bg-slate-900 px-4 py-3 font-medium text-white transition hover:bg-slate-800"
                     >
                       متابعة التعلم

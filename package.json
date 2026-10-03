@@ -6,7 +6,18 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:deploy": "prisma migrate deploy",
+    "db:seed": "node --import tsx prisma/seed.ts && node --import tsx scripts/seed-content.ts",
+    "setup": "npm run db:generate && npm run db:deploy && npm run db:seed",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:integration": "node --import tsx scripts/integration.ts",
+    "db:backup": "node scripts/backup-db.mjs",
+    "verify:runtime": "node scripts/verify-runtime.mjs",
+    "test:browser": "node scripts/verify-runtime.mjs --browser",
+    "format": "prettier --write app components lib scripts tests prisma/seed.ts prisma7.config.ts",
+    "format:check": "prettier --check app components lib scripts tests prisma/seed.ts prisma7.config.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
@@ -19,12 +30,24 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
+    "playwright": "^1.63.0",
+    "prettier": "^3.9.9",
     "tailwindcss": "^4",
+    "tsx": "^4.23.15",
     "typescript": "^5"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "overrides": {
+    "@prisma/adapter-better-sqlite3": {
+      "better-sqlite3": "$better-sqlite3"
+    }
   }
 }

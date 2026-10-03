@@ -1,12 +1,13 @@
+import { requireStudent } from "@/lib/access";
+import { fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const currentUser = await requireStudent();
     const student = await prisma.user.findUnique({
-      where: {
-        email: "student@hessa.local",
-      },
+      where: { id: currentUser.id },
       include: {
         enrollments: {
           include: {
@@ -35,7 +36,7 @@ export async function GET() {
           success: false,
           message: "Student not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -61,14 +62,6 @@ export async function GET() {
       courses,
     });
   } catch (error) {
-    console.error("Courses API error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message: "Failed to load courses",
-      },
-      { status: 500 }
-    );
+    return fail(error);
   }
 }

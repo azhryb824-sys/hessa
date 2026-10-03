@@ -1,12 +1,13 @@
+import { requireStudent } from "@/lib/access";
+import { fail } from "@/lib/http";
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const currentUser = await requireStudent();
     const student = await prisma.user.findUnique({
-      where: {
-        email: "student@hessa.local",
-      },
+      where: { id: currentUser.id },
     });
 
     if (!student) {
@@ -15,11 +16,12 @@ export async function GET() {
           success: false,
           message: "Student not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const assessments = await prisma.assessment.findMany({
+      where: { course: { enrollments: { some: { userId: student.id } } } },
       include: {
         questions: {
           select: {
@@ -65,13 +67,11 @@ export async function GET() {
       },
     });
 
-    const courseMap = new Map(
-      courses.map((course) => [course.id, course])
-    );
+    const courseMap = new Map(courses.map((course) => [course.id, course]));
 
     const exams = assessments.map((assessment) => {
       const completedAttempts = assessment.attempts.filter(
-        (attempt) => attempt.completedAt !== null
+        (attempt) => attempt.completedAt !== null,
       );
 
       const latestAttempt = completedAttempts[0] ?? null;
@@ -80,11 +80,11 @@ export async function GET() {
 
       const totalPoints = assessment.questions.reduce(
         (total, question) => total + question.points,
-        0
+        0,
       );
 
       const course = assessment.courseId
-        ? courseMap.get(assessment.courseId) ?? null
+        ? (courseMap.get(assessment.courseId) ?? null)
         : null;
 
       return {
@@ -93,10 +93,7 @@ export async function GET() {
         description: assessment.description,
         type: assessment.type,
 
-        subject:
-          course?.subject ??
-          course?.title ??
-          "عام",
+        subject: course?.subject ?? course?.title ?? "عام",
 
         course,
 
@@ -118,18 +115,15 @@ export async function GET() {
       };
     });
 
-    const completedExams = exams.filter(
-      (exam) => exam.completed
-    );
+    const completedExams = exams.filter((exam) => exam.completed);
 
     const averageScore =
       completedExams.length > 0
         ? Math.round(
             completedExams.reduce(
-              (total, exam) =>
-                total + (exam.latestAttempt?.score ?? 0),
-              0
-            ) / completedExams.length
+              (total, exam) => total + (exam.latestAttempt?.score ?? 0),
+              0,
+            ) / completedExams.length,
           )
         : 0;
 
@@ -146,17 +140,6 @@ export async function GET() {
       exams,
     });
   } catch (error) {
-    console.error("Exams API error:", error);
-
-    return NextResponse.json(
-      {
-        success: false,
-        message:
-          error instanceof Error
-            ? error.message
-            : String(error),
-      },
-      { status: 500 }
-    );
+    return fail(error);
   }
 }
