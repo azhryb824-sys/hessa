@@ -1,69 +1,321 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import Sidebar from "@/components/dashboard/Sidebar";
+import Header from "@/components/dashboard/Header";
+
+type Course = {
+  id: string;
+  title: string;
+  subject: string;
+  progress: number;
+  lessonsCount: number;
+};
+
+type DashboardData = {
+  student: {
+    name: string;
+    learningLevel: string | null;
+    learningGoal: string | null;
+    dailyMinutes: number;
+    learningStreak: number;
+    totalHours: number;
+  };
+  statistics: {
+    totalCourses: number;
+    averageProgress: number;
+    averageScore: number;
+    completedAssessments: number;
+  };
+  courses: Course[];
+};
+
+export default function DashboardPage() {
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    async function loadDashboard() {
+      try {
+        const response = await fetch("/api/dashboard");
+
+        if (!response.ok) {
+          throw new Error("Failed to load dashboard");
+        }
+
+        const result = await response.json();
+
+        if (!result.success) {
+          throw new Error(result.message || "Failed to load dashboard");
+        }
+
+        setData(result);
+      } catch (err) {
+        console.error(err);
+        setError("تعذر تحميل لوحة التحكم");
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, []);
+
+  if (loading) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-slate-50">
+        <Sidebar />
+
+        <div className="mr-72 min-h-screen">
+          <Header />
+
+          <main className="p-6 lg:p-8">
+            <div className="rounded-2xl bg-white p-10 text-center shadow-sm">
+              <p className="text-slate-500">
+                جاري تحميل لوحة التعلم...
+              </p>
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div dir="rtl" className="min-h-screen bg-slate-50">
+        <Sidebar />
+
+        <div className="mr-72 min-h-screen">
+          <Header />
+
+          <main className="p-6 lg:p-8">
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-center text-red-700">
+              {error || "حدث خطأ أثناء تحميل البيانات"}
+            </div>
+          </main>
+        </div>
+      </div>
+    );
+  }
+
+  const levelLabel =
+    data.student.learningLevel === "BEGINNER"
+      ? "مبتدئ"
+      : data.student.learningLevel === "ADVANCED"
+        ? "متقدم"
+        : "متوسط";
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+    <div dir="rtl" className="min-h-screen bg-slate-50">
+      <Sidebar />
+
+      <div className="mr-72 min-h-screen">
+        <Header />
+
+        <main className="p-6 lg:p-8">
+          {/* Welcome */}
+          <section className="mb-8 overflow-hidden rounded-3xl bg-gradient-to-l from-indigo-700 via-indigo-600 to-violet-600 p-8 text-white shadow-lg">
+            <div className="max-w-3xl">
+              <p className="mb-2 text-indigo-100">
+                مرحبًا بك في حصة 👋
+              </p>
+
+              <h1 className="text-3xl font-bold lg:text-4xl">
+                أهلاً {data.student.name}
+              </h1>
+
+              <p className="mt-4 leading-7 text-indigo-100">
+                {data.student.learningGoal ||
+                  "استمر في التعلم وطوّر مهاراتك كل يوم."}
+              </p>
+
+              <div className="mt-6 flex flex-wrap gap-3">
+                <span className="rounded-full bg-white/15 px-4 py-2 text-sm">
+                  المستوى: {levelLabel}
+                </span>
+
+                <span className="rounded-full bg-white/15 px-4 py-2 text-sm">
+                  {data.student.dailyMinutes} دقيقة يوميًا
+                </span>
+
+                <span className="rounded-full bg-white/15 px-4 py-2 text-sm">
+                  🔥 {data.student.learningStreak} أيام متتالية
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* Statistics */}
+          <section className="mb-8 grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <StatCard
+              title="المواد"
+              value={data.statistics.totalCourses.toString()}
+              description="مواد مسجلة"
+              icon="📚"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+            <StatCard
+              title="متوسط التقدم"
+              value={`${data.statistics.averageProgress}%`}
+              description="في جميع المواد"
+              icon="📈"
+            />
+
+            <StatCard
+              title="ساعات التعلم"
+              value={`${data.student.totalHours}`}
+              description="ساعة إجماليًا"
+              icon="⏱️"
+            />
+
+            <StatCard
+              title="الاختبارات"
+              value={data.statistics.completedAssessments.toString()}
+              description="اختبارات مكتملة"
+              icon="📝"
+            />
+          </section>
+
+          {/* Courses */}
+          <section className="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  تقدمي في المواد
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  تابع تقدمك في كل مادة
+                </p>
+              </div>
+
+              <a
+                href="/dashboard/courses"
+                className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                عرض الكل
+              </a>
+            </div>
+
+            <div className="space-y-5">
+              {data.courses.map((course) => (
+                <div key={course.id}>
+                  <div className="mb-2 flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-slate-900">
+                        {course.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-500">
+                        {course.lessonsCount} دروس
+                      </p>
+                    </div>
+
+                    <span className="font-bold text-indigo-600">
+                      {course.progress}%
+                    </span>
+                  </div>
+
+                  <div className="h-3 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-indigo-600 transition-all"
+                      style={{
+                        width: `${course.progress}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* AI Teacher */}
+          <section className="mb-8 rounded-2xl border border-indigo-100 bg-gradient-to-l from-indigo-50 to-violet-50 p-6">
+            <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="mb-3 inline-flex rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-700">
+                  ✨ مدرس الذكاء الاصطناعي
+                </div>
+
+                <h2 className="text-2xl font-bold text-slate-900">
+                  هل تحتاج إلى مساعدة في دراستك؟
+                </h2>
+
+                <p className="mt-2 max-w-2xl leading-7 text-slate-600">
+                  اسأل مدرس الذكاء الاصطناعي، واحصل على شرح يتناسب مع مستواك
+                  وطريقة تعلمك.
+                </p>
+              </div>
+
+              <a
+                href="/dashboard/ai-teacher"
+                className="shrink-0 rounded-xl bg-indigo-600 px-6 py-3 text-center font-medium text-white transition hover:bg-indigo-700"
+              >
+                ابدأ التعلم مع AI
+              </a>
+            </div>
+          </section>
+
+          {/* Learning time */}
+          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-slate-900">
+                  هدفك اليومي
+                </h2>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  خطتك اليومية مصممة لتناسب وقتك.
+                </p>
+              </div>
+
+              <div className="text-left">
+                <div className="text-3xl font-bold text-indigo-600">
+                  {data.student.dailyMinutes}
+                </div>
+
+                <div className="text-sm text-slate-500">
+                  دقيقة يوميًا
+                </div>
+              </div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function StatCard({
+  title,
+  value,
+  description,
+  icon,
+}: {
+  title: string;
+  value: string;
+  description: string;
+  icon: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex items-center justify-between">
+        <span className="text-2xl">{icon}</span>
+
+        <span className="text-sm text-slate-500">
+          {title}
+        </span>
+      </div>
+
+      <div className="text-3xl font-bold text-slate-900">
+        {value}
+      </div>
+
+      <div className="mt-1 text-sm text-slate-500">
+        {description}
+      </div>
     </div>
   );
 }
