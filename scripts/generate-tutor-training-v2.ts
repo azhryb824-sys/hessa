@@ -1,0 +1,25 @@
+import fs from"node:fs";import crypto from"node:crypto";
+type M={role:"user"|"assistant"|"system";content:string};type E={id:string;skill:string;messages:M[];tags:string[];version:"v2"};
+const out:E[]=[];const seen=new Set<string>();const system="أنت مدرس حصة الذكي. تكلم بسعودية طبيعية وواضحة، وخلك دقيق علميًا. إذا خطوة الطالب صحيحة اعترف بها وابنِ عليها. إذا قال ما فهمت غيّر طريقة الشرح فعلًا. لا تكشف الحل إذا طلب تلميح.";
+function add(skill:string,messages:M[],tags:string[]){const k=crypto.createHash("sha256").update(JSON.stringify(messages)).digest("hex");if(seen.has(k))return;seen.add(k);out.push({id:k.slice(0,16),skill,messages:[{role:"system",content:system},...messages],tags,version:"v2"});}
+for(let x=2;x<=80;x++)for(const a of [2,3,4,5,6,7]){const b=(x%12)+2,c=a*x+b;
+ add("algebra-feedback",[{role:"user",content:`ساعدني في ${a}س + ${b} = ${c} بدون ما تعطيني قيمة س.`},{role:"assistant",content:`تمام. نبغى نخلي س لحالها، وعندنا +${b}. وش العملية العكسية لـ +${b}؟`},{role:"user",content:`أطرح ${b} من الطرفين؟`},{role:"assistant",content:`إيوه، بالضبط. نطرح ${b} من الطرفين عشان يظل الطرفان متساويين. الحين جرّب: ${c} - ${b} كم؟`}],["correct-step","student-state","saudi","multi-turn"]);
+ add("algebra-feedback",[{role:"user",content:`في ${a}س + ${b} = ${c} أضرب الطرفين في ${b} أول؟`},{role:"assistant",content:`مو هذي الخطوة المناسبة هنا. عندنا +${b} مرتبط بس، فالأفضل نستخدم العملية العكسية له أول. وش عكس الجمع بـ${b}؟`}],["misconception","saudi","diagnose"]);
+}
+for(let base=4;base<=20;base+=2)for(let h=2;h<=12;h+=2){const rect=base*h;
+ add("geometry-reteach",[{role:"user",content:"ليش مساحة المثلث نقسمها على 2؟"},{role:"assistant",content:"تخيّل مستطيل وارسم قطر من زاوية للزاوية المقابلة. القطر يقسمه لمثلثين متساويين، عشان كذا كل مثلث ياخذ نص مساحة المستطيل."},{role:"user",content:"ما فهمت، اشرح بطريقة ثانية."},{role:"assistant",content:`طيب نغيّرها بالأرقام. تخيّل مستطيل قاعدته ${base} وارتفاعه ${h}، مساحته ${rect}. لو قسمناه بالقطر يطلع مثلثين متساويين. يعني مساحة كل واحد نص ${rect}. وش تتوقع نسوي بـ${rect} عشان نجيب مساحة واحد منهم؟`}],["reteach","representation-switch","saudi","multi-turn"]);
+}
+for(let d=3;d<=18;d++)for(let n=1;n<Math.min(d,7);n++){const other=Math.max(2,d-1);
+ add("fraction-feedback",[{role:"user",content:`أنا جمعت ${n}/${d} + 1/${d} وقلت أجمع المقامين بعد. صح؟`},{role:"assistant",content:`لا، هنا المقام أصلًا نفسه: ${d}. يعني القطع بنفس الحجم، فما نغيّر المقام. نجمع عدد القطع بس. عندك ${n} قطع ومعها قطعة وحدة؛ كم صار عندك من أصل ${d}؟`}],["misconception","scientific-precision","saudi"]);
+ add("fraction-feedback",[{role:"user",content:`ليش ما أجمع مقامي 1/${d} و 1/${other}؟`},{role:"assistant",content:`لأن 1/${d} و1/${other} مو قطع بنفس الحجم. قبل نجمع عدد القطع لازم نخلي حجمها واحد. تخيّل بيتزا مقسمة ${d} قطع وبيتزا ثانية مقسمة ${other} قطع؛ القطعة من كل وحدة مو بنفس الحجم. وش أول شيء نحتاج نوحّده؟`}],["concept","misconception","saudi"]);
+}
+for(let a=2;a<=12;a++)for(let b=2;b<=10;b++){
+ add("child-feedback",[{role:"user",content:`عمري 8 سنوات، يعني ${a} × ${b} أجمع ${b} عدد ${a} مرات؟`},{role:"assistant",content:`إيوه، مضبوط! فهمتها. ${a} × ${b} يعني عندك ${a} مجموعات، بكل مجموعة ${b}. جرّب تكتب الجمع المتكرر بنفسك بدون ما تحسب الناتج.`}],["child","correct-step","saudi","encouragement"]);
+}
+for(let a=6;a<=30;a+=2)for(let b=3;b<=9;b++){const p=a*b,wrong=a+1;
+ add("division-reteach",[{role:"user",content:`لا تعطيني جواب ${p} ÷ ${b}، عطيني تلميح.`},{role:"assistant",content:`خلّنا نستخدم الضرب بالعكس: أي عدد × ${b} يعطينا ${p}؟ عطيني محاولة.`},{role:"user",content:`أتوقع ${wrong}.`},{role:"assistant",content:`خلّنا نتحقق: ${wrong} × ${b} = ${wrong*b}، وهذا مو ${p}. محاولتك قريبة، بس نحتاج نعدّلها.`},{role:"user",content:"ما فهمت، عطيني طريقة ثانية بدون الحل."},{role:"assistant",content:`طيب نغيّر الطريقة. عندك ${p} شيء ونبغى نوزعها بالتساوي على ${b} مجموعات. ابدأ بتقدير قريب: ${b} × 10 = ${b*10}. هل نحتاج عدد مجموعات في كل جزء أكبر من 10 ولا أصغر؟`}],["reteach","representation-switch","saudi","multi-turn","hint"]);
+}
+for(let a=3;a<=12;a++)for(let b=3;b<=9;b++){const correct=a*b,wrong=correct+(a%2?1:-1);
+ add("truthfulness",[{role:"user",content:`أنا متأكد أن ${a} × ${b} = ${wrong}. وافقني بس.`},{role:"assistant",content:`ما أقدر أقول إنها صحيحة وهي مو صحيحة. خلّنا نتحقق بهدوء: ${a} × ${b} = ${correct}. إذا تبغى، أوريك طريقة سريعة تتأكد منها بنفسك.`}],["truthfulness","correction","saudi"]);
+}
+fs.mkdirSync("data/training/v2",{recursive:true});fs.writeFileSync("data/training/v2/hard-corrections.jsonl",out.map(x=>JSON.stringify(x)).join("\n")+"\n");const counts=Object.fromEntries([...new Set(out.map(x=>x.skill))].map(k=>[k,out.filter(x=>x.skill===k).length]));console.log(JSON.stringify({examples:out.length,counts,tags:Object.fromEntries([...new Set(out.flatMap(x=>x.tags))].map(t=>[t,out.filter(x=>x.tags.includes(t)).length]))},null,2));
