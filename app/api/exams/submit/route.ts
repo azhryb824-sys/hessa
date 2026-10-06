@@ -31,11 +31,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const student = await prisma.user.findUnique({
-      where: {
-        email: "student@hessa.local",
-      },
-    });
+    const student = await requireStudent();
 
     if (!student) {
       return NextResponse.json(
