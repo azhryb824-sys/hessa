@@ -6,7 +6,8 @@ export class HessaAICore{
   const subject=routeSubject(message,request.subject);const pedagogy=pedagogyPolicy(request.student);const plan=planDialogue(message,request.history,request.student);
   const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
   const deterministic=subject==="MATH"?solveDeterministicMath(plan.resolvedMessage):null;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
-  if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}\n  else if(deterministic&&plan.mode==="SOCRATIC_HINT"){
+  if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}
+  else if(deterministic&&plan.mode==="SOCRATIC_HINT"){
     answer=buildHint(message,deterministic.answer);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
   }else if(deterministic){
     answer=adaptDeterministicAnswer(message,deterministic.answer,plan.mode,plan.shouldCheckUnderstanding);verification=verifyMathAnswer(plan.resolvedMessage,deterministic.answer);
