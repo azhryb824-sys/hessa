@@ -1,0 +1,4 @@
+export type SkillNode={id:string;grade:number;domain:string;unit:string;title:string;outcomes:string[];prerequisites:string[];masteryThreshold:number;};
+export type CurriculumGraph={id:string;title:string;subject:"الرياضيات";stage:"PRIMARY";version:string;license:"HESSA_ORIGINAL";skills:SkillNode[]};
+export function getUnlockedSkills(graph:CurriculumGraph,mastered:Set<string>){return graph.skills.filter(s=>s.prerequisites.every(p=>mastered.has(p))&&!mastered.has(s.id));}
+export function validateGraph(graph:CurriculumGraph){const ids=new Set(graph.skills.map(s=>s.id));const issues:string[]=[];for(const s of graph.skills){for(const p of s.prerequisites)if(!ids.has(p))issues.push(`${s.id}: prerequisite ${p} is missing`);if(s.masteryThreshold<0.7||s.masteryThreshold>1)issues.push(`${s.id}: invalid mastery threshold`);}return{valid:issues.length===0,issues};}
