@@ -1,0 +1,4 @@
+import { requireStudent } from "@/lib/auth/session";
+import { prisma } from "@/lib/db/prisma";
+import { NextResponse } from "next/server";
+export async function POST(){try{const user=await requireStudent();const existing=await prisma.subscription.findUnique({where:{userId:user.id}});if(existing)return NextResponse.json({success:false,message:"تم إنشاء استحقاق لهذا الحساب سابقًا"},{status:409});const trialEndsAt=new Date(Date.now()+7*86400000);const subscription=await prisma.subscription.create({data:{userId:user.id,plan:"TRIAL",status:"ACTIVE",trialEndsAt}});return NextResponse.json({success:true,subscription:{plan:subscription.plan,status:subscription.status,trialEndsAt:subscription.trialEndsAt}});}catch{return NextResponse.json({success:false,message:"تعذر بدء التجربة"},{status:400});}}
