@@ -41,6 +41,23 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const wordSubtract = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:اعطى|أعطى|فقد|استخدم|باع)[^\d]{0,20}(\d+)/i);
   if(wordSubtract){const a=Number(wordSubtract[1]),b=Number(wordSubtract[2]),value=a-b;return{kind:"word-subtraction",expectedAnswer:format(value),answer:`نحدد العملية أولًا: الكمية نقصت، إذن نطرح. ${a} - ${b} = ${format(value)}.`};}
 
+  if (/0\s*\/\s*0(?:\D|$)/.test(text)) return {kind:"zero-over-zero",expectedAnswer:"غير معيّنة",answer:"0 ÷ 0 حالة خاصة: لا نستطيع تحديد قيمة واحدة للناتج، لأن أي عدد إذا ضربناه في 0 يعطينا 0. لذلك التعبير 0/0 غير معرّف كقسمة عادية، ويُسمّى أيضًا صيغة غير معيّنة في سياق النهايات."};
+
+  const multiStepMoney = text.match(/مع\s+[^\d]{0,20}(\d+)\s*ريال[^\d]{0,30}(?:اشترى|دفع)[^\d]{0,15}(\d+)\s*ريال[^\d]{0,35}(?:أعطاه|اعطاه|حصل|زاد)[^\d]{0,15}(\d+)\s*ريال/i);
+  if(multiStepMoney){const a=Number(multiStepMoney[1]),spent=Number(multiStepMoney[2]),added=Number(multiStepMoney[3]),value=a-spent+added;return{kind:"multi-step-money",expectedAnswer:format(value),answer:`نحل حسب ترتيب أحداث المسألة: نبدأ بـ ${a}، ثم نطرح ${spent} لأنه دفعها: ${a} - ${spent} = ${format(a-spent)}. بعد ذلك نضيف ${added}: ${format(a-spent)} + ${added} = ${format(value)}. إذن معه الآن ${format(value)} ريالًا.`};}
+
+  const groupsThenShare = text.match(/(?:في\s+)?(\d+)\s+صناديق[^\d]{0,30}(?:كل\s+صندوق|بكل\s+صندوق)[^\d]{0,10}(\d+)[^\d]{0,40}(?:بالتساوي|وزعت|وُزّعت)[^\d]{0,20}(\d+)\s+(?:طلاب|طالب)/i);
+  if(groupsThenShare){const boxes=Number(groupsThenShare[1]),each=Number(groupsThenShare[2]),students=Number(groupsThenShare[3]),total=boxes*each,value=total/students;return{kind:"multiply-then-divide-word",expectedAnswer:format(value),answer:`أولًا نحسب عدد الأقلام كلها: ${boxes} × ${each} = ${format(total)}. ثم نوزعها بالتساوي على ${students}: ${format(total)} ÷ ${students} = ${format(value)}. إذن لكل طالب ${format(value)} قلمًا.`};}
+
+  const percentIncrease = text.match(/(?:سعر|ثمن)[^\d]{0,10}(\d+(?:\.\d+)?)\s+[^%]{0,25}(?:زاد|زيادة)\s+(\d+(?:\.\d+)?)%/i);
+  if(percentIncrease){const base=Number(percentIncrease[1]),p=Number(percentIncrease[2]),inc=base*p/100,value=base+inc;return{kind:"percent-increase",expectedAnswer:format(value),answer:`نحسب مقدار الزيادة أولًا: ${p}% من ${base} = ${format(inc)}. ثم نضيف الزيادة إلى السعر الأصلي: ${base} + ${format(inc)} = ${format(value)}. إذن السعر الجديد ${format(value)}.`};}
+
+  const bothSides = text.match(/(-?\d+(?:\.\d+)?)\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)/i);
+  if(bothSides){const a=Number(bothSides[1]),b=(bothSides[2]==="+"?1:-1)*Number(bothSides[3]),c=Number(bothSides[4]),d=(bothSides[5]==="+"?1:-1)*Number(bothSides[6]);if(a!==c){const x=(d-b)/(a-c);return{kind:"linear-equation-both-sides",expectedAnswer:format(x),answer:`نجمع حدود المجهول في طرف والثوابت في الطرف الآخر: (${a} - ${c})س = ${format(d-b)}. ثم نقسم على ${format(a-c)} فنحصل على س = ${format(x)}. ونتحقق بالتعويض في الطرفين.`};}}
+
+  const fractionEquivalence = text.match(/هل\s+(\d+)\s*\/\s*(\d+)\s+و\s+(\d+)\s*\/\s*(\d+)\s+متكافئ/i);
+  if(fractionEquivalence){const a=Number(fractionEquivalence[1]),b=Number(fractionEquivalence[2]),c=Number(fractionEquivalence[3]),d=Number(fractionEquivalence[4]);const equal=a*d===c*b;return{kind:"fraction-equivalence",expectedAnswer:equal?"متكافئان":"غير متكافئين",answer:equal?`نعم، الكسران متكافئان. نبسّط ${a}/${b} فنحصل على ${c}/${d}، أو نتحقق بالضرب التبادلي: ${a} × ${d} = ${c} × ${b}.`:`لا، الكسران غير متكافئين لأن الضرب التبادلي لا يعطي قيمتين متساويتين.`};}
+
   const divisionByZero = text.match(/(-?\d+(?:\.\d+)?)\s*\/\s*0(?:\D|$)/);
   if (divisionByZero) return {kind:"division-by-zero",expectedAnswer:"غير معرّفة",answer:"القسمة على صفر غير معرّفة. لأننا لو افترضنا أن عددًا ما يساوي "+divisionByZero[1]+" ÷ 0، فسنحتاج عددًا إذا ضربناه في 0 يعطينا "+divisionByZero[1]+"، لكن أي عدد مضروبًا في 0 يساوي 0. لذلك لا يوجد ناتج لهذه القسمة."};
 
