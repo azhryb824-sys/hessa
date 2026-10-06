@@ -1,4 +1,4 @@
-export type GenerationInput = { system: string; user: string; context: string[] };
+export type GenerationInput = { system: string; user: string; context: string[]; history?:Array<{role:"user"|"assistant";content:string}> };
 export interface HessaModelProvider { readonly name: string; generate(input: GenerationInput): Promise<string>; }
 
 export class SafeFallbackProvider implements HessaModelProvider {
@@ -26,6 +26,7 @@ export class OpenAICompatibleLocalProvider implements HessaModelProvider {
         temperature: 0.2,
         messages: [
           { role: "system", content: input.system },
+          ...(input.history??[]).slice(-6).map(turn=>({role:turn.role,content:turn.content})),
           { role: "user", content: input.context.length ? `السياق المنهجي:\n${input.context.join("\n\n---\n\n")}\n\nسؤال الطالب:\n${input.user}` : input.user }
         ]
       })
