@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 import { mapQuestionToSkill } from "@/lib/ai/question-skill-mapper";
 import { aggregateSkillEvidence, nextMastery } from "@/lib/ai/mastery-update";
 
