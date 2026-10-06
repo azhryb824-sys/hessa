@@ -44,6 +44,8 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const divisionByZero = text.match(/(-?\d+(?:\.\d+)?)\s*\/\s*0(?:\D|$)/);
   if (divisionByZero) return {kind:"division-by-zero",expectedAnswer:"غير معرّفة",answer:"القسمة على صفر غير معرّفة. لأننا لو افترضنا أن عددًا ما يساوي "+divisionByZero[1]+" ÷ 0، فسنحتاج عددًا إذا ضربناه في 0 يعطينا "+divisionByZero[1]+"، لكن أي عدد مضروبًا في 0 يساوي 0. لذلك لا يوجد ناتج لهذه القسمة."};
 
+  const falseArithmeticPremise = text.match(/(?:لماذا|ليش|اشرح)[^\n]{0,40}(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)\s*(?:يساوي|=)\s*(-?\d+(?:\.\d+)?)/i);
+  if(falseArithmeticPremise){const a=Number(falseArithmeticPremise[1]),op=falseArithmeticPremise[2],b=Number(falseArithmeticPremise[3]),claimed=Number(falseArithmeticPremise[4]);if(!(op==="/"&&b===0)){const actual=op==="+"?a+b:op==="-"?a-b:op==="*"?a*b:a/b;if(actual!==claimed)return{kind:"false-premise",expectedAnswer:format(actual),answer:`الفرضية غير صحيحة: ${a} ${op==="*"?"×":op==="/"?"÷":op} ${b} لا يساوي ${claimed}. نحسبها فنجد ${format(actual)}، لذلك الناتج الصحيح هو ${format(actual)}.`};}}
   const arithmetic = text.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
   if (arithmetic) { const left=Number(arithmetic[1]),op=arithmetic[2],right=Number(arithmetic[3]); if(op==="/"&&right===0)return null; const value=op==="+"?left+right:op==="-"?left-right:op==="*"?left*right:left/right; const symbol=op==="*"?"×":op==="/"?"÷":op; return {kind:"arithmetic",expectedAnswer:format(value),answer:`نحلها خطوة خطوة: ${left} ${symbol} ${right} = ${format(value)}. إذن الناتج هو ${format(value)}.`}; }
 
