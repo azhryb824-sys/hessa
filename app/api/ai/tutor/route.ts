@@ -5,6 +5,7 @@ import type { TutorRequest } from "@/lib/ai/types";
 import { NextResponse } from "next/server";
 import { requireStudent } from "@/lib/auth/session";
 import { requireEntitlement } from "@/lib/billing/entitlement";
+import { mapQuestionToSkill } from "@/lib/ai/question-skill-mapper";
 
 const core = new HessaAICore();
 
@@ -29,6 +30,9 @@ export async function POST(request: Request) {
         };
       }
     }
+
+    const skillId = mapQuestionToSkill(body.message, body.subject);
+    if(skillId){const mastery=await prisma.skillMastery.findUnique({where:{userId_skillId:{userId:studentId,skillId}}});if(mastery)body.mastery={skillId,status:mastery.status as any,attempts:mastery.attempts,accuracy:mastery.accuracy,confidence:mastery.confidence};}
 
     if (!body.retrievedContext?.length) {
       body.retrievedContext = await searchCurriculum(
