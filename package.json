@@ -9,7 +9,8 @@
     "lint": "eslint",
     "release:scan": "npx tsx scripts/release-identity-scan.ts",
     "release:math": "npx tsx scripts/benchmark-math.ts",
-    "release:mastery": "npx tsx scripts/test-mastery-engine.ts"
+    "release:mastery": "npx tsx scripts/test-mastery-engine.ts",
+    "science:math": "npx tsx scripts/benchmark-scientific-math.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
