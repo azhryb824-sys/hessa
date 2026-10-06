@@ -1,0 +1,10 @@
+import fs from"node:fs";import crypto from"node:crypto";
+const read=(p:string)=>fs.readFileSync(p,"utf8").trim().split("\n").filter(Boolean).map(JSON.parse);
+const v1=read("data/training/v1/train.jsonl"),v2=read("data/training/v2/hard-corrections.jsonl");
+const benchmarkFiles=["scripts/tutor-professional-ux-eval.ts","scripts/long-dialogue-eval.ts","scripts/specialized-science-eval.ts"];const heldout=benchmarkFiles.filter(fs.existsSync).map(p=>fs.readFileSync(p,"utf8")).join("\n");
+const unique=new Map<string,any>();for(const x of [...v1,...v2]){const key=crypto.createHash("sha256").update(JSON.stringify(x.messages)).digest("hex");const users=x.messages.filter((m:any)=>m.role==="user").map((m:any)=>m.content);if(users.some((u:string)=>heldout.includes(u)))continue;unique.set(key,x)}
+const all=[...unique.values()];const bucket=(x:any)=>parseInt(crypto.createHash("sha256").update(x.id??JSON.stringify(x.messages)).digest("hex").slice(0,8),16)%100;
+const sets={train:[] as any[],validation:[] as any[]};for(const x of all)(bucket(x)<90?sets.train:sets.validation).push(x);
+fs.mkdirSync("data/training/v2/combined",{recursive:true});for(const[k,v]of Object.entries(sets))fs.writeFileSync(`data/training/v2/combined/${k}.jsonl`,v.map(JSON.stringify).join("\n")+"\n");
+const saudi=all.filter((x:any)=>(x.tags??[]).includes("saudi")).length,multi=all.filter((x:any)=>(x.tags??[]).includes("multi-turn")).length,reteach=all.filter((x:any)=>(x.tags??[]).includes("representation-switch")).length,correct=all.filter((x:any)=>(x.tags??[]).includes("correct-step")).length;
+console.log({v1:v1.length,v2:v2.length,combined:all.length,train:sets.train.length,validation:sets.validation.length,saudi,multi,reteach,correct,benchmarkLeakage:all.filter((x:any)=>x.messages.filter((m:any)=>m.role==="user").some((u:any)=>heldout.includes(u.content))).length});if(v2.length<1000||saudi<1000||multi<300||reteach<150||correct<300)process.exitCode=1;
