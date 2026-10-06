@@ -3,13 +3,16 @@ import { searchCurriculum } from "@/lib/ai/curriculum-store";
 import { prisma } from "@/lib/db/prisma";
 import type { TutorRequest } from "@/lib/ai/types";
 import { NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 
 const core = new HessaAICore();
 
 export async function POST(request: Request) {
   try {
+    const currentStudent = await requireStudent();
     const body = (await request.json()) as TutorRequest;
-    const studentId = body.student?.studentId;
+    const studentId = currentStudent.id;
+    body.student = { ...body.student, studentId };
 
     if (studentId) {
       const student = await prisma.user.findUnique({
