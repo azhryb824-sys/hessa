@@ -1,0 +1,5 @@
+import type{LearningAction,MasteryStatus}from"./mastery-engine";
+export type TutorPhase="DIAGNOSE"|"TEACH"|"GUIDED_PRACTICE"|"INDEPENDENT_PRACTICE"|"REMEDIATE"|"RETEST"|"ADVANCE";
+export type MasterySnapshot={skillId:string;status:MasteryStatus;attempts:number;accuracy:number;confidence:number};
+export function chooseTutorPhase(m?:MasterySnapshot|null):TutorPhase{if(!m||m.status==="NOT_STARTED")return"DIAGNOSE";if(m.status==="REMEDIATE")return"REMEDIATE";if(m.status==="RETEST")return"RETEST";if(m.status==="MASTERED")return"ADVANCE";if(m.attempts<2)return"TEACH";if(m.confidence<.55)return"GUIDED_PRACTICE";return"INDEPENDENT_PRACTICE";}
+export function phaseInstruction(p:TutorPhase){return({DIAGNOSE:"ابدأ بسؤال تشخيصي قصير قبل افتراض مستوى الطالب.",TEACH:"اشرح المفهوم من المعنى ثم مثال واحد.",GUIDED_PRACTICE:"اجعل الطالب ينفذ الخطوة التالية مع تلميح محدود.",INDEPENDENT_PRACTICE:"أعط مسألة مناسبة ودع الطالب يحل قبل التصحيح.",REMEDIATE:"غيّر التمثيل عن الشرح السابق واستهدف التصور الخاطئ.",RETEST:"اختبر نفس المهارة بصيغة جديدة دون تلميح مباشر.",ADVANCE:"لا تكرر المهارة المتقنة؛ انتقل للمهارة التالية أو تطبيق أعمق."} as const)[p];}
