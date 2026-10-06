@@ -55,6 +55,7 @@ model User {
   attempts       AssessmentAttempt[]
   lessonProgress LessonProgress[]
   curriculumChunks CurriculumChunk[] @relation("CurriculumReviewer")
+  skillMasteries SkillMastery[]
 }
 
 model StudentProfile {
@@ -202,4 +203,24 @@ model CurriculumChunk {
 
   @@index([subject, grade, reviewed])
   @@index([version, reviewed])
+}
+
+
+model SkillMastery {
+  id String @id @default(cuid())
+  userId String
+  skillId String
+  attempts Int @default(0)
+  correctAttempts Int @default(0)
+  accuracy Float @default(0)
+  confidence Float @default(0)
+  status String @default("NOT_STARTED")
+  lastScore Float?
+  lastAttemptAt DateTime?
+  masteredAt DateTime?
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@unique([userId, skillId])
+  @@index([userId, status])
 }
