@@ -1,0 +1,2 @@
+import {HessaAICore} from "@/lib/ai/core"; import type {TutorRequest} from "@/lib/ai/types"; import {NextResponse} from "next/server"; const core=new HessaAICore();
+export async function POST(request:Request){try{const body=(await request.json()) as TutorRequest;const result=await core.tutor(body);return NextResponse.json(result,{status:200,headers:{"Cache-Control":"no-store"}});}catch(error){return NextResponse.json({success:false,message:error instanceof Error?error.message:"AI Core request failed"},{status:400});}}
