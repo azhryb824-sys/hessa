@@ -63,6 +63,9 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
 
   const falseArithmeticPremise = text.match(/(?:لماذا|ليش|اشرح)[^\n]{0,40}(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)\s*(?:يساوي|=)\s*(-?\d+(?:\.\d+)?)/i);
   if(falseArithmeticPremise){const a=Number(falseArithmeticPremise[1]),op=falseArithmeticPremise[2],b=Number(falseArithmeticPremise[3]),claimed=Number(falseArithmeticPremise[4]);if(!(op==="/"&&b===0)){const actual=op==="+"?a+b:op==="-"?a-b:op==="*"?a*b:a/b;if(actual!==claimed)return{kind:"false-premise",expectedAnswer:format(actual),answer:`الفرضية غير صحيحة: ${a} ${op==="*"?"×":op==="/"?"÷":op} ${b} لا يساوي ${claimed}. نحسبها فنجد ${format(actual)}، لذلك الناتج الصحيح هو ${format(actual)}.`};}}
+  const chain = text.match(/^\s*(-?\d+(?:\.\d+)?)\s*([+\-*/÷×])\s*(-?\d+(?:\.\d+)?)\s*([+\-*/÷×])\s*(-?\d+(?:\.\d+)?)/);
+  if(chain){const a=Number(chain[1]),op1=chain[2],b=Number(chain[3]),op2=chain[4],c=Number(chain[5]);const norm=(o:string)=>o==="÷"?"/":o==="×"?"*":o;const x=norm(op1),y=norm(op2);const apply=(m:number,o:string,n:number)=>o==="+"?m+n:o==="-"?m-n:o==="*"?m*n:m/n;let value:number;if((y==="*"||y==="/")&&(x==="+"||x==="-"))value=apply(a,x,apply(b,y,c));else value=apply(apply(a,x,b),y,c);return{kind:"operation-chain",expectedAnswer:format(value),answer:`نراعي ترتيب العمليات، ومع الضرب والقسمة في المستوى نفسه نعمل من اليسار إلى اليمين. الناتج = ${format(value)}.`};}
+
   const arithmetic = text.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
   if (arithmetic) { const left=Number(arithmetic[1]),op=arithmetic[2],right=Number(arithmetic[3]); if(op==="/"&&right===0)return null; const value=op==="+"?left+right:op==="-"?left-right:op==="*"?left*right:left/right; const symbol=op==="*"?"×":op==="/"?"÷":op; return {kind:"arithmetic",expectedAnswer:format(value),answer:`نحلها خطوة خطوة: ${left} ${symbol} ${right} = ${format(value)}. إذن الناتج هو ${format(value)}.`}; }
 
