@@ -54,6 +54,7 @@ model User {
   enrollments    Enrollment[]
   attempts       AssessmentAttempt[]
   lessonProgress LessonProgress[]
+  curriculumChunks CurriculumChunk[] @relation("CurriculumReviewer")
 }
 
 model StudentProfile {
@@ -179,4 +180,26 @@ model LessonProgress {
   lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
 
   @@unique([userId, lessonId])
+}
+
+model CurriculumChunk {
+  id          String   @id @default(cuid())
+  title       String
+  content     String
+  subject     String
+  stage       String
+  grade       String
+  semester    String?
+  unit        String?
+  lesson      String?
+  source      String?
+  version     String
+  reviewed    Boolean  @default(false)
+  reviewerId  String?
+  reviewer    User?    @relation("CurriculumReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([subject, grade, reviewed])
+  @@index([version, reviewed])
 }
