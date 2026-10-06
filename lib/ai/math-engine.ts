@@ -32,6 +32,9 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const triangleArea = text.match(/(?:مساح(?:ه|ة)\s+(?:مثلث)|مثلث[^\n]*مساح)(?:[^\d]{0,30})(\d+(?:\.\d+)?)(?:[^\d]{1,30})(\d+(?:\.\d+)?)/i);
   if (triangleArea) { const base=Number(triangleArea[1]),height=Number(triangleArea[2]),value=base*height/2; return {kind:"triangle-area",expectedAnswer:format(value),answer:`نستخدم قانون مساحة المثلث: القاعدة × الارتفاع ÷ 2. نعوض: ${base} × ${height} ÷ 2 = ${format(value)}. نقسم على 2 لأن المثلث يمثل نصف مستطيل له القاعدة والارتفاع نفسيهما. إذن المساحة = ${format(value)} وحدة مربعة.`}; }
 
+  const bothSidesEarly = text.match(/(-?\d+(?:\.\d+)?)\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)/i);
+  if(bothSidesEarly){const a=Number(bothSidesEarly[1]),b=(bothSidesEarly[2]==="+"?1:-1)*Number(bothSidesEarly[3]),c=Number(bothSidesEarly[4]),d=(bothSidesEarly[5]==="+"?1:-1)*Number(bothSidesEarly[6]);if(a!==c){const x=(d-b)/(a-c);return{kind:"linear-equation-both-sides",expectedAnswer:format(x),answer:`نجمع حدود المجهول في طرف والثوابت في الطرف الآخر: (${a} - ${c})س = ${format(d-b)}. ثم نقسم على ${format(a-c)} فنحصل على س = ${format(x)}. ونتحقق بالتعويض في الطرفين.`};}}
+
   const axb = text.match(/(-?\d+(?:\.\d+)?)\s*[*x]?\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i);
   if (axb) { const a=Number(axb[1]),op=axb[2],b=Number(axb[3]),c=Number(axb[4]); if(a!==0){const x=(op==="+"?c-b:c+b)/a;return{kind:"linear-equation-ax-b",expectedAnswer:format(x),answer:`نعزل حد المجهول ثم نقسم على ${a}: س = ${format(x)}. ونتحقق بالتعويض في المعادلة الأصلية.`};} }
 
