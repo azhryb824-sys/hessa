@@ -4,12 +4,14 @@ import { prisma } from "@/lib/db/prisma";
 import type { TutorRequest } from "@/lib/ai/types";
 import { NextResponse } from "next/server";
 import { requireStudent } from "@/lib/auth/session";
+import { requireEntitlement } from "@/lib/billing/entitlement";
 
 const core = new HessaAICore();
 
 export async function POST(request: Request) {
   try {
     const currentStudent = await requireStudent();
+    await requireEntitlement(currentStudent.id);
     const body = (await request.json()) as TutorRequest;
     const studentId = currentStudent.id;
     body.student = { ...body.student, studentId };
