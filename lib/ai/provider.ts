@@ -1,0 +1,2 @@
+export type GenerationInput={system:string;user:string;context:string[]}; export interface HessaModelProvider{readonly name:string;generate(input:GenerationInput):Promise<string>;}
+export class SafeFallbackProvider implements HessaModelProvider{readonly name="safe-fallback";async generate(input:GenerationInput){if(input.context.length>0)return `بحسب محتوى الدرس المتاح: ${input.context[0].slice(0,700)}\n\nسؤالك: ${input.user}`;return "أحتاج محتوى الدرس أو نموذجًا لغويًا موصولًا حتى أشرح هذا السؤال بدقة، ولن أخمّن إجابة غير متحققة.";}}
