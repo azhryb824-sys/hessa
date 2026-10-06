@@ -1,0 +1,35 @@
+name: Hessa Training Data v1
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/hessa-ai-core-v1]
+    paths:
+      - "scripts/generate-tutor-training-v1.ts"
+      - "scripts/prepare-tutor-training-v1.ts"
+      - "benchmarks/**"
+jobs:
+  dataset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm install
+      - name: Generate dataset
+        run: npx tsx scripts/generate-tutor-training-v1.ts
+      - name: Quality gate and split
+        run: npx tsx scripts/prepare-tutor-training-v1.ts
+      - name: Dataset manifest
+        run: |
+          wc -l data/training/hessa-tutor-v1.raw.jsonl data/training/v1/*.jsonl
+          sha256sum data/training/v1/*.jsonl > data/training/v1/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hessa-tutor-training-v1
+          path: |
+            data/training/v1/*.jsonl
+            data/training/v1/SHA256SUMS.txt
+          retention-days: 14
