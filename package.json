@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "release:scan": "npx tsx scripts/release-identity-scan.ts",
+    "release:math": "npx tsx scripts/benchmark-math.ts",
+    "release:mastery": "npx tsx scripts/test-mastery-engine.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
@@ -25,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.20.6"
   }
 }
