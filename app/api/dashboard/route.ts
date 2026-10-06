@@ -4,7 +4,8 @@ import { requireStudent } from "@/lib/auth/session";
 
 export async function GET() {
 try {
-const student = await requireStudent();
+const current = await requireStudent();
+const student = await prisma.user.findUnique({where:{id:current.id},include:{studentProfile:true,enrollments:{include:{course:{include:{lessons:true}}}},attempts:true,lessonProgress:{where:{completed:true},include:{lesson:{include:{course:true}}},orderBy:{completedAt:"desc"}}}});
 
 if (!student) {
   return NextResponse.json(
