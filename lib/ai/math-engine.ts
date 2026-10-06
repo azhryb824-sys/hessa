@@ -20,6 +20,27 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const equation = text.match(/(?:^|\s)(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i);
   if(equation){const op=equation[1],a=Number(equation[2]),b=Number(equation[3]),x=op==="+"?b-a:b+a;return{kind:"linear-equation",expectedAnswer:format(x),answer:`نعزل المجهول: س = ${format(x)}. وبالتعويض نتحقق أن الطرفين متساويان.`};}
 
+  const rectangleArea = text.match(/(?:مساح(?:ه|ة)\s+(?:مستطيل)|مستطيل[^\n]*مساح)(?:[^\d]{0,30})(\d+(?:\.\d+)?)(?:[^\d]{1,30})(\d+(?:\.\d+)?)/i);
+  if (rectangleArea) { const a=Number(rectangleArea[1]),b=Number(rectangleArea[2]),value=a*b; return {kind:"rectangle-area",expectedAnswer:format(value),answer:`مساحة المستطيل = الطول × العرض = ${a} × ${b} = ${format(value)}.`}; }
+
+  const rectanglePerimeter = text.match(/(?:محيط\s+(?:مستطيل)|مستطيل[^\n]*محيط)(?:[^\d]{0,30})(\d+(?:\.\d+)?)(?:[^\d]{1,30})(\d+(?:\.\d+)?)/i);
+  if (rectanglePerimeter) { const a=Number(rectanglePerimeter[1]),b=Number(rectanglePerimeter[2]),value=2*(a+b); return {kind:"rectangle-perimeter",expectedAnswer:format(value),answer:`محيط المستطيل = 2 × (الطول + العرض) = 2 × (${a} + ${b}) = ${format(value)}.`}; }
+
+  const squareArea = text.match(/(?:مساح(?:ه|ة)\s+(?:مربع)|مربع[^\n]*مساح)(?:[^\d]{0,30})(\d+(?:\.\d+)?)/i);
+  if (squareArea) { const a=Number(squareArea[1]),value=a*a; return {kind:"square-area",expectedAnswer:format(value),answer:`مساحة المربع = طول الضلع × نفسه = ${a} × ${a} = ${format(value)}.`}; }
+
+  const triangleArea = text.match(/(?:مساح(?:ه|ة)\s+(?:مثلث)|مثلث[^\n]*مساح)(?:[^\d]{0,30})(\d+(?:\.\d+)?)(?:[^\d]{1,30})(\d+(?:\.\d+)?)/i);
+  if (triangleArea) { const base=Number(triangleArea[1]),height=Number(triangleArea[2]),value=base*height/2; return {kind:"triangle-area",expectedAnswer:format(value),answer:`مساحة المثلث = القاعدة × الارتفاع ÷ 2 = ${base} × ${height} ÷ 2 = ${format(value)}.`}; }
+
+  const axb = text.match(/(-?\d+(?:\.\d+)?)\s*[*x]?\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i);
+  if (axb) { const a=Number(axb[1]),op=axb[2],b=Number(axb[3]),c=Number(axb[4]); if(a!==0){const x=(op==="+"?c-b:c+b)/a;return{kind:"linear-equation-ax-b",expectedAnswer:format(x),answer:`نعزل حد المجهول ثم نقسم على ${a}: س = ${format(x)}. ونتحقق بالتعويض في المعادلة الأصلية.`};} }
+
+  const wordAdd = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:زاد|اضاف|أضاف|اشترى|اعطاه|أعطاه)[^\d]{0,20}(\d+)/i);
+  if(wordAdd){const a=Number(wordAdd[1]),b=Number(wordAdd[2]),value=a+b;return{kind:"word-addition",expectedAnswer:format(value),answer:`نحدد العملية أولًا: الكمية زادت، إذن نجمع. ${a} + ${b} = ${format(value)}.`};}
+
+  const wordSubtract = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:اعطى|أعطى|فقد|استخدم|باع)[^\d]{0,20}(\d+)/i);
+  if(wordSubtract){const a=Number(wordSubtract[1]),b=Number(wordSubtract[2]),value=a-b;return{kind:"word-subtraction",expectedAnswer:format(value),answer:`نحدد العملية أولًا: الكمية نقصت، إذن نطرح. ${a} - ${b} = ${format(value)}.`};}
+
   const arithmetic = text.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
   if (arithmetic) { const left=Number(arithmetic[1]),op=arithmetic[2],right=Number(arithmetic[3]); if(op==="/"&&right===0)return null; const value=op==="+"?left+right:op==="-"?left-right:op==="*"?left*right:left/right; const symbol=op==="*"?"×":op==="/"?"÷":op; return {kind:"arithmetic",expectedAnswer:format(value),answer:`نحلها خطوة خطوة: ${left} ${symbol} ${right} = ${format(value)}. إذن الناتج هو ${format(value)}.`}; }
 
