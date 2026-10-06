@@ -10,7 +10,8 @@
     "release:scan": "npx tsx scripts/release-identity-scan.ts",
     "release:math": "npx tsx scripts/benchmark-math.ts",
     "release:mastery": "npx tsx scripts/test-mastery-engine.ts",
-    "science:math": "npx tsx scripts/benchmark-scientific-math.ts"
+    "science:math": "npx tsx scripts/benchmark-scientific-math.ts",
+    "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
