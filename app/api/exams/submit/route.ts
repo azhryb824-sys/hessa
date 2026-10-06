@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { mapQuestionToSkill } from "@/lib/ai/question-skill-mapper";
+import { aggregateSkillEvidence, nextMastery } from "@/lib/ai/mastery-update";
 
 export async function POST(request: NextRequest) {
   try {
@@ -153,13 +155,35 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      return attempt;
+      const course = assessment.courseId
+        ? await tx.course.findUnique({ where: { id: assessment.courseId }, select: { subject: true } })
+        : null;
+      const evidence = answerRecords.flatMap((answer) => {
+        const question = assessment.questions.find((item) => item.id === answer.questionId);
+        const skillId = question ? mapQuestionToSkill(question.question, course?.subject) : null;
+        return skillId ? [{ skillId, correct: answer.isCorrect, score: answer.isCorrect ? 1 : 0 }] : [];
+      });
+      const grouped = aggregateSkillEvidence(evidence);
+      for (const [skillId, current] of grouped.entries()) {
+        const previous = await tx.skillMastery.findUnique({
+          where: { userId_skillId: { userId: student.id, skillId } },
+          select: { attempts: true, correctAttempts: true }
+        });
+        const update = nextMastery(previous ?? { attempts: 0, correctAttempts: 0 }, current);
+        await tx.skillMastery.upsert({
+          where: { userId_skillId: { userId: student.id, skillId } },
+          update: { ...update, lastAttemptAt: new Date() },
+          create: { userId: student.id, skillId, ...update, lastAttemptAt: new Date() }
+        });
+      }
+      return { attempt, masterySkillsUpdated: [...grouped.keys()] };
     });
 
     return NextResponse.json(
       {
         success: true,
-        attemptId: result.id,
+        attemptId: result.attempt.id,
+        masterySkillsUpdated: result.masterySkillsUpdated,
 
         result: {
           score,
