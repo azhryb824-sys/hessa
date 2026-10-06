@@ -1,0 +1,72 @@
+[
+  {
+    "id": "basic-add",
+    "age": 8,
+    "prompt": "3 + 5 كم؟",
+    "expected": "8",
+    "mustVerify": true
+  },
+  {
+    "id": "basic-div",
+    "age": 9,
+    "prompt": "24 ÷ 6 كم؟",
+    "expected": "4",
+    "mustVerify": true
+  },
+  {
+    "id": "fraction",
+    "age": 11,
+    "prompt": "1/2 + 1/4",
+    "expected": "3/4",
+    "mustVerify": true
+  },
+  {
+    "id": "percentage",
+    "age": 12,
+    "prompt": "25% من 80",
+    "expected": "20",
+    "mustVerify": true
+  },
+  {
+    "id": "algebra",
+    "age": 12,
+    "prompt": "2س + 3 = 11",
+    "expected": "4",
+    "mustVerify": true
+  },
+  {
+    "id": "geometry",
+    "age": 11,
+    "prompt": "مساحة مثلث قاعدته 10 وارتفاعه 4",
+    "expected": "20",
+    "mustVerify": true
+  },
+  {
+    "id": "word-add",
+    "age": 7,
+    "prompt": "معه 4 أقلام ثم اشترى 3 أقلام، كم أصبح معه؟",
+    "expected": "7",
+    "mustVerify": true
+  },
+  {
+    "id": "false-premise",
+    "age": 10,
+    "prompt": "اشرح لماذا 3 + 5 يساوي 2",
+    "expected": "8",
+    "mustVerify": true
+  },
+  {
+    "id": "division-zero",
+    "age": 11,
+    "prompt": "5 ÷ 0 كم؟",
+    "expected": null,
+    "mustVerify": false
+  },
+  {
+    "id": "unsupported-proof",
+    "age": 12,
+    "prompt": "أثبت أن كل عدد أولي فردي",
+    "expected": null,
+    "mustVerify": false
+  }
+]
