@@ -13,14 +13,14 @@ async function main(){
    "خلّنا نغيّر الطريقة: مثّل الفكرة برسم بسيط، وحدد المعطيات أولًا ثم اكتب ملاحظتك بدون القفز إلى نتيجة نهائية."
  ]);
  const repairCore=new HessaAICore(repairProvider);
- const r=await repairCore.tutor({message:"ما فهمت العلاقة بين النمط العددي والقاعدة. اشرح بطريقة ثانية.",subject:"MATH",student:{age:12},history:[{role:"assistant",content:"اشرح النمط بقراءة الأعداد فقط."}],retrievedContext:[]} as any);
+ const r=await repairCore.tutor({message:"ما فهمت كيف أقرر إذا الاستدلال الرياضي في هذا البرهان صالح. اشرح بطريقة ثانية.",subject:"MATH",student:{age:12},history:[{role:"assistant",content:"اقرأ البرهان مرة ثانية فقط."}],retrievedContext:[]} as any);
  assert.equal(repairProvider.calls,2);assert.ok(!r.answer.includes("7 × 7 = 4"));assert.ok(!r.answer.includes("بعد التوحيد نجمع الحجم"));
  console.log("Generative reject/regenerate path: PASS",{providerCalls:repairProvider.calls,answer:r.answer.slice(0,140)});
 
  // 3) Both generations fail: safe fallback must replace them.
  const failProvider=new Fake(["7 × 7 = 4. ".repeat(30),"7 × 7 = 4. ".repeat(30)]);
  const failCore=new HessaAICore(failProvider);
- const f=await failCore.tutor({message:"ما فهمت النمط، اشرح بطريقة ثانية.",subject:"MATH",student:{age:12},history:[{role:"assistant",content:"كرر نفس القاعدة."}],retrievedContext:[]} as any);
+ const f=await failCore.tutor({message:"ما فهمت كيف أراجع صلاحية الاستدلال في برهان رياضي. اشرح بطريقة ثانية.",subject:"MATH",student:{age:12},history:[{role:"assistant",content:"كرر قراءة البرهان."}],retrievedContext:[]} as any);
  assert.equal(failProvider.calls,2);assert.ok(!f.answer.includes("7 × 7 = 4"));assert.match(f.answer,/نغيّر التمثيل|خطوة خطوة/);
  console.log("Generative safe-fallback path: PASS",{providerCalls:failProvider.calls,answer:f.answer.slice(0,140)});
 }
