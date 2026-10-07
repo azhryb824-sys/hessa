@@ -6,8 +6,9 @@ const patterns: Array<[HessaSubject, RegExp]> = [
 ["ENGLISH", /(english|grammar|vocabulary|reading|writing|tense|verb|noun)/i],
 ];
 export function routeSubject(message:string,explicitSubject?:string):HessaSubject{
- const explicit=explicitSubject?.trim().toUpperCase();
+ const raw=explicitSubject?.trim()??"";const explicit=raw.toUpperCase();
  if(explicit&&["MATH","SCIENCE","ARABIC","ENGLISH","GENERAL"].includes(explicit))return explicit as HessaSubject;
+ if(raw){for(const[s,p]of patterns)if(p.test(raw))return s;}
  for(const[s,p]of patterns)if(p.test(message))return s;
  return"GENERAL";
 }
