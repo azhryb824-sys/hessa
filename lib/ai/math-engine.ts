@@ -38,6 +38,12 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const axb = text.match(/(-?\d+(?:\.\d+)?)\s*[*x]?\s*(?:س|x)\s*([+\-])\s*(-?\d+(?:\.\d+)?)\s*=\s*(-?\d+(?:\.\d+)?)/i);
   if (axb) { const a=Number(axb[1]),op=axb[2],b=Number(axb[3]),c=Number(axb[4]); if(a!==0){const x=(op==="+"?c-b:c+b)/a;return{kind:"linear-equation-ax-b",expectedAnswer:format(x),answer:`نعزل حد المجهول ثم نقسم على ${a}: س = ${format(x)}. ونتحقق بالتعويض في المعادلة الأصلية.`};} }
 
+  const wordGot = text.match(/(?:مع|لدى)\s+[^\d]{0,20}(\d+)\s+[^.،؟?]{0,25}(?:ثم\s+)?(?:حصل(?:ت)?\s+على|أخذ(?:ت)?|استلم(?:ت)?)[^\d]{0,20}(\d+)/i);
+  if(wordGot){const a=Number(wordGot[1]),b=Number(wordGot[2]),value=a+b;return{kind:"word-addition-got",expectedAnswer:format(value),answer:`الكمية زادت، إذن نجمع: ${a} + ${b} = ${format(value)}.`};}
+
+  const wordGave = text.match(/(?:مع|لدى)\s+[^\d]{0,20}(\d+)\s+[^.،؟?]{0,25}(?:ثم\s+)?(?:أعطى|اعطى|أعطت|اعطت)[^\d]{0,20}(\d+)/i);
+  if(wordGave){const a=Number(wordGave[1]),b=Number(wordGave[2]),value=a-b;return{kind:"word-subtraction-gave",expectedAnswer:format(value),answer:`الكمية نقصت، إذن نطرح: ${a} - ${b} = ${format(value)}.`};}
+
   const wordAdd = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:زاد|اضاف|أضاف|اشترى|اعطاه|أعطاه)[^\d]{0,20}(\d+)/i);
   if(wordAdd){const a=Number(wordAdd[1]),b=Number(wordAdd[2]),value=a+b;return{kind:"word-addition",expectedAnswer:format(value),answer:`نحدد العملية أولًا: الكمية زادت، إذن نجمع. ${a} + ${b} = ${format(value)}.`};}
 
