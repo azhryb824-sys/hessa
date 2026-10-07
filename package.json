@@ -13,7 +13,8 @@
     "science:math": "npx tsx scripts/benchmark-scientific-math.ts",
     "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts",
     "postinstall": "prisma generate",
-    "prebuild": "prisma generate"
+    "prebuild": "prisma generate",
+    "eval:generative-adversarial": "tsx scripts/benchmark-generative-adversarial.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
