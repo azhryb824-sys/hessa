@@ -9,7 +9,7 @@ export function computeMastery(attempts:number,correct:number,recentScores:numbe
  let status:MasteryStatus=attempts?"LEARNING":"NOT_STARTED";
  if(attempts>=2&&accuracy<.6)status="REMEDIATE";
  if(attempts>=3&&accuracy>=.6&&accuracy<threshold)status="RETEST";
- const enoughBreadth=variantCount>=2&&difficultyCount>=2;
+ const enoughBreadth=(variants.length===0&&difficulties.length===0)?(attempts>=5&&recent.length>=3):variantCount>=2&&difficultyCount>=2;
  if(attempts>=5&&accuracy>=threshold&&recentMean>=threshold&&enoughBreadth)status="MASTERED";
  return{accuracy,recentMean,breadth,confidence,status,enoughBreadth};
 }
