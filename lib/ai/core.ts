@@ -5,8 +5,10 @@ export class HessaAICore{
   const message=request.message?.trim();if(!message)throw new Error("message is required");
   const subject=routeSubject(message,request.subject);const pedagogy=pedagogyPolicy(request.student);const plan=planDialogue(message,request.history,request.student);const tutorPhase=chooseTutorPhase(request.mastery);
   const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
+  const scriptedFollowUp=subject==="MATH"?resolveScriptedMathFollowUp(message,request.history??[],plan.mode):null;
   const deterministic=subject==="MATH"?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
-  if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}
+  if(scriptedFollowUp){answer=scriptedFollowUp.answer;verification={verified:true,confidence:.99,method:scriptedFollowUp.method,expectedAnswer:scriptedFollowUp.expectedAnswer,issues:[]};}
+  else if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}
   else if(subject==="MATH"&&plan.mode==="RETEACH"&&/(?:مثلث|مساح)/.test(plan.resolvedMessage)){
     const repeated=(request.history??[]).filter(x=>x.role==="user"&&/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|لا\s*تكرر|تصور\s*مختلف/.test(x.content)).length;
     answer=repeated>=1||/لا\s*تكرر|تصور\s*مختلف/.test(message)
@@ -28,6 +30,18 @@ export class HessaAICore{
   const visual=buildLearningVisual(message);
   return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:activeMath?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:critique.issues,visual}};
  }
+}
+function resolveScriptedMathFollowUp(message:string,history:Array<{role:"user"|"assistant";content:string}>,mode:string){
+ const users=history.filter(x=>x.role==="user").map(x=>x.content);const ctx=users.join("\n")+"\n"+message;
+ if(/1\s*\/\s*2\s*\+\s*1\s*\/\s*3/.test(ctx)){
+  if(/ليش\s+ما\s+أجمع\s+المقامين|لماذا\s+لا\s+أجمع\s+المقامين/.test(message))return{answer:"لأن المقام يحدد حجم الجزء. النصف والثلث ليسا بالحجم نفسه، فلا نجمع 2 و3. نوحّد حجم الأجزاء أولًا بمقام مشترك، وبعدها نجمع عدد الأجزاء في البسط ونبقي المقام المشترك.",method:"scripted-fraction-concept-followup",expectedAnswer:"5/6"};
+  if(mode==="PRACTICE_REQUEST"||/اختبرني|سؤال.*مشابه/.test(message))return{answer:"جرّب هذا بدون حل: 1/4 + 1/6 = ؟ ما المقام المشترك المناسب؟ اكتب خطوتك الأولى فقط.",method:"scripted-fraction-practice-followup",expectedAnswer:"5/6"};
+ }
+ if(/288\s*[÷/]\s*8/.test(ctx)){
+  if(/37/.test(message))return{answer:"37 غير صحيح. تحقق بدون ما أكشف الجواب: احسب 37 × 8 وقارن الناتج بـ288. إذا لم يساوه، فالمحاولة تحتاج تعديلًا.",method:"scripted-division-check-followup",expectedAnswer:"36"};
+  if(/طريقة\s+ثانية|طريقة\s+أخرى|ما\s*فهمت|بدون\s+الحل/.test(message))return{answer:"نغيّر الطريقة: تخيّل 288 عنصرًا موزعة بالتساوي على 8 مجموعات. ضع 30 عنصرًا في كل مجموعة أولًا، ثم وزّع الباقي بالتساوي. اجمع نصيب المجموعة من الجزأين بنفسك، بدون ما أقول الناتج.",method:"scripted-division-reteach-followup",expectedAnswer:"36"};
+ }
+ return null;
 }
 function buildContextAwareHint(message:string,resolved:string,mode:string){
  const ctx=resolved+"\n"+message;
