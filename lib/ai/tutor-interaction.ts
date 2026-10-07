@@ -1,6 +1,6 @@
 export type TutorIntent="HINT"|"CHECK_ANSWER"|"WHY"|"RETEACH"|"EMOTIONAL_DIFFICULTY"|"SOLVE";
 export function detectTutorIntent(message:string):TutorIntent{
- if(/لا\s+(?:تعطيني|تقول|تكتب).*?(?:جواب|حل|ناتج)|تلميح|ساعدني\s+أفهم/i.test(message))return"HINT";
+ if(/(?:لا|بدون\s+ما)\s*(?:تعطيني|تقول|تكتب).*?(?:جواب|حل|ناتج|قيمة)|تلميح|ساعدني\s+أفهم/i.test(message))return"HINT";
  if(/(?:حلي|حسبت|إجابتي|اجابتي).*?(?:صح|صحيح)|صح[؟?]?$/i.test(message))return"CHECK_ANSWER";
  if(/ليش|لماذا|سبب|ليه/.test(message))return"WHY";
  if(/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|بطريقة\s+ثانية|وضحها/.test(message))return"RETEACH";
