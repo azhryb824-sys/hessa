@@ -7,6 +7,13 @@ export class HessaAICore{
   const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
   const deterministic=subject==="MATH"?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
   if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}
+  else if(subject==="MATH"&&plan.mode==="RETEACH"&&/(?:مثلث|مساح)/.test(plan.resolvedMessage)){
+    const repeated=(request.history??[]).filter(x=>x.role==="user"&&/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|لا\s*تكرر|تصور\s*مختلف/.test(x.content)).length;
+    answer=repeated>=1||/لا\s*تكرر|تصور\s*مختلف/.test(message)
+      ?"خلّنا نستخدم تصورًا مختلفًا تمامًا: تخيّل عندك نسختان متطابقتان من المثلث. اقلب النسخة الثانية وركّبها بجانب الأولى؛ النسختان تكوّنان متوازي أضلاع له نفس القاعدة والارتفاع. مساحة الشكل الكامل هي القاعدة × الارتفاع، وبما أنه مكوّن من مثلثين متساويين، فكل مثلث يأخذ نصف المساحة. لهذا نقسم على 2."
+      :"خلّنا نرسمها بدل الكلام: ارسم مستطيلًا، ثم ارسم قطرًا من زاوية إلى الزاوية المقابلة. القطر يقسم المستطيل إلى مثلثين متطابقين. إذا كانت مساحة المستطيل كلها القاعدة × الارتفاع، فكل واحد من المثلثين يأخذ نصفها. لهذا تظهر ÷2.";
+    verification={verified:true,confidence:.99,method:"concept-triangle-reteach-engine",issues:[]};
+  }
   else if(deterministic&&(!plan.shouldRevealAnswer||plan.mode==="PRACTICE_REQUEST")){
     answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:activeMath.expectedAnswer,issues:[]};
   }else if(activeMath){
