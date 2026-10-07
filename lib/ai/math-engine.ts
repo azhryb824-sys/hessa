@@ -44,7 +44,7 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const wordGave = text.match(/(?:مع|لدى)\s+[^\d]{0,20}(\d+)\s+[^.،؟?]{0,25}(?:ثم\s+)?(?:أعطى|اعطى|أعطت|اعطت)[^\d]{0,20}(\d+)/i);
   if(wordGave){const a=Number(wordGave[1]),b=Number(wordGave[2]),value=a-b;return{kind:"word-subtraction-gave",expectedAnswer:format(value),answer:`الكمية نقصت، إذن نطرح: ${a} - ${b} = ${format(value)}.`};}
 
-  const wordAdd = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:زاد|اضاف|أضاف|اشترى|اعطاه|أعطاه)[^\d]{0,20}(\d+)/i);
+  const wordAdd = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,45}(?:زاد|اضاف|أضاف|اشترى|اعطاه|أعطاه)[^\d]{0,25}(\d+)/i);
   if(wordAdd){const a=Number(wordAdd[1]),b=Number(wordAdd[2]),value=a+b;return{kind:"word-addition",expectedAnswer:format(value),answer:`نحدد العملية أولًا: الكمية زادت، إذن نجمع. ${a} + ${b} = ${format(value)}.`};}
 
   const wordSubtract = text.match(/(?:معه|لديه|عنده)\s+(\d+)\s+[^.،؟?]{0,30}(?:اعطى|أعطى|فقد|استخدم|باع)[^\d]{0,20}(\d+)/i);
@@ -54,6 +54,12 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
 
   const multiStepMoney = text.match(/مع\s+[^\d]{0,20}(\d+)\s*ريال[^\d]{0,30}(?:اشترى|دفع)[^\d]{0,15}(\d+)\s*ريال[^\d]{0,35}(?:أعطاه|اعطاه|حصل|زاد)[^\d]{0,15}(\d+)\s*ريال/i);
   if(multiStepMoney){const a=Number(multiStepMoney[1]),spent=Number(multiStepMoney[2]),added=Number(multiStepMoney[3]),value=a-spent+added;return{kind:"multi-step-money",expectedAnswer:format(value),answer:`نحل حسب ترتيب أحداث المسألة: نبدأ بـ ${a}، ثم نطرح ${spent} لأنه دفعها: ${a} - ${spent} = ${format(a-spent)}. بعد ذلك نضيف ${added}: ${format(a-spent)} + ${added} = ${format(value)}. إذن معه الآن ${format(value)} ريالًا.`};}
+
+  const groupsWord = text.match(/(\d+)\s+مجموعات[^\d]{0,30}(?:في\s+كل\s+مجموعة|بكل\s+مجموعة)[^\d]{0,15}(\d+)\s+(?:عناصر|عنصر)/i);
+  if(groupsWord){const a=Number(groupsWord[1]),b=Number(groupsWord[2]),value=a*b;return{kind:"groups-multiplication",expectedAnswer:format(value),answer:`عندنا ${a} مجموعات، في كل مجموعة ${b} عناصر، إذن نضرب: ${a} × ${b} = ${format(value)}.`};}
+
+  const shareWord = text.match(/(?:وزع|وزّع|وُزّع)\s+(\d+)\s+(?:عنصرًا|عنصرا|عنصر)[^\d]{0,30}(?:على|إلى)\s+(\d+)\s+مجموعات/i);
+  if(shareWord){const total=Number(shareWord[1]),groups=Number(shareWord[2]),value=total/groups;return{kind:"sharing-division",expectedAnswer:format(value),answer:`نوزع ${total} بالتساوي على ${groups} مجموعات: ${total} ÷ ${groups} = ${format(value)}.`};}
 
   const groupsThenShare = text.match(/(?:في\s+)?(\d+)\s+صناديق[^\d]{0,30}(?:كل\s+صندوق|بكل\s+صندوق)[^\d]{0,10}(\d+)[^\d]{0,40}(?:بالتساوي|وزعت|وُزّعت)[^\d]{0,20}(\d+)\s+(?:طلاب|طالب)/i);
   if(groupsThenShare){const boxes=Number(groupsThenShare[1]),each=Number(groupsThenShare[2]),students=Number(groupsThenShare[3]),total=boxes*each,value=total/students;return{kind:"multiply-then-divide-word",expectedAnswer:format(value),answer:`أولًا نحسب عدد الأقلام كلها: ${boxes} × ${each} = ${format(total)}. ثم نوزعها بالتساوي على ${students}: ${format(total)} ÷ ${students} = ${format(value)}. إذن لكل طالب ${format(value)} قلمًا.`};}
