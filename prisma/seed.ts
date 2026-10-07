@@ -8,6 +8,7 @@ import {
   AssessmentType,
 } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { makePasswordHash } from "../lib/auth/password";
 
 const adapter = new PrismaBetterSqlite3({
   url: process.env.DATABASE_URL!,
@@ -19,16 +20,17 @@ const prisma = new PrismaClient({
 
 async function main() {
   console.log("🌱 Starting Hessa seed...");
+  const demoPasswordHash = makePasswordHash("demo-password");
 
   const teacher = await prisma.user.upsert({
     where: {
       email: "teacher@hessa.local",
     },
-    update: {},
+    update: { password: demoPasswordHash },
     create: {
       name: "أستاذ حصة",
       email: "teacher@hessa.local",
-      password: "demo-password",
+      password: demoPasswordHash,
       role: UserRole.TEACHER,
     },
   });
@@ -37,11 +39,11 @@ async function main() {
     where: {
       email: "student@hessa.local",
     },
-    update: {},
+    update: { password: demoPasswordHash },
     create: {
       name: "طالب حصة",
       email: "student@hessa.local",
-      password: "demo-password",
+      password: demoPasswordHash,
       role: UserRole.STUDENT,
       studentProfile: {
         create: {
