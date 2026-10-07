@@ -5,12 +5,12 @@ export class HessaAICore{
   const message=request.message?.trim();if(!message)throw new Error("message is required");
   const subject=routeSubject(message,request.subject);const pedagogy=pedagogyPolicy(request.student);const plan=planDialogue(message,request.history,request.student);const tutorPhase=chooseTutorPhase(request.mastery);
   const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
-  const deterministic=subject==="MATH"?solveDeterministicMath(plan.resolvedMessage):null;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
+  const deterministic=subject==="MATH"?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
   if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE")){answer=concept.answer;verification={verified:true,confidence:concept.confidence,method:"concept-curriculum-engine",issues:[]};}
   else if(deterministic&&(!plan.shouldRevealAnswer||plan.mode==="PRACTICE_REQUEST")){
-    answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
-  }else if(deterministic){
-    answer=adaptDeterministicAnswer(message,deterministic.answer,plan.mode,plan.shouldCheckUnderstanding);verification=verifyMathAnswer(plan.resolvedMessage,deterministic.answer);
+    answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:activeMath.expectedAnswer,issues:[]};
+  }else if(activeMath){
+    answer=adaptDeterministicAnswer(message,activeMath.answer,plan.mode,plan.shouldCheckUnderstanding);verification=verifyMathAnswer(plan.resolvedMessage,activeMath.answer);
   }else{
     const system=["أنت مدرس حصة الذكي، مدرس شخصي تفاعلي وليس آلة إجابات.",`المادة: ${subject}. المرحلة: ${pedagogy.stage}.`,...pedagogy.rules,...plan.instructions,phaseInstruction(tutorPhase),plan.priorContext?"استخدم سياق الحوار السابق لحل الإشارات والمتابعة، ولا تتظاهر بأن الرسالة مستقلة.":"",documents.length?"التزم بالمحتوى المسترجع ولا تخترع حقائق غير موجودة فيه.":"إذا لم تتوفر معرفة موثوقة فلا تخمّن."].filter(Boolean).join("\n");
     answer=await this.provider.generate({system,user:plan.resolvedMessage,context:documents.map(d=>d.content),history:request.history});
@@ -19,7 +19,7 @@ export class HessaAICore{
   }
   const previousAssistant=[...(request.history??[])].reverse().find(x=>x.role==="assistant")?.content;const critique=critiqueTutorAnswer({message,answer,stage:pedagogy.stage,mode:plan.mode,verified:verification.verified,previousAssistant});if(!critique.pass&&critique.issues.includes("repeated-explanation")&&concept)answer=concept.answer+"\n\nخلّنا نغيّر طريقة التفكير بدل تكرار الخطوات السابقة.";
   const visual=buildLearningVisual(message);
-  return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:deterministic?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:critique.issues,visual}};
+  return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:activeMath?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:critique.issues,visual}};
  }
 }
 function buildContextAwareHint(message:string,resolved:string,mode:string){
