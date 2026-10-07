@@ -1,0 +1,6 @@
+import assert from"node:assert/strict";import{guardTutorResponse}from"../lib/ai/tutor-policy-guard";import{verifyExplicitArithmetic}from"../lib/ai/math-verifier";import{validateTutorOutput}from"../lib/ai/tutor-output-validator";
+assert.equal(verifyExplicitArithmetic("9 × 7 = 63").ok,true);assert.equal(verifyExplicitArithmetic("7 × 7 = 4").ok,false);
+assert.equal(guardTutorResponse({userText:"لا تعطيني جواب 288 ÷ 8. أبغى تلميح.",response:"إذن الجواب هو 36.",knownAnswer:36}).ok,false);
+assert.equal(guardTutorResponse({userText:"ساعدني بتلميح",response:"فكر في العملية العكسية.",knownAnswer:36}).ok,true);
+assert.equal(guardTutorResponse({userText:"اشرح",response:"بعد التوحيد نجمع الحجم. ".repeat(12)}).ok,false);
+assert.equal(validateTutorOutput({userText:"تلميح فقط",response:"7 × 7 = 4",knownAnswer:49}).action,"REGENERATE");console.log("Tutor output safety tests: PASS");
