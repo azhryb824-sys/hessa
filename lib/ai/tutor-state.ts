@@ -1,4 +1,4 @@
-import type{LearningAction,MasteryStatus}from"./mastery-engine";
+import type{MasteryStatus}from"./mastery-engine";
 export type TutorPhase="DIAGNOSE"|"TEACH"|"GUIDED_PRACTICE"|"INDEPENDENT_PRACTICE"|"REMEDIATE"|"RETEST"|"ADVANCE";
 export type MasterySnapshot={skillId:string;status:MasteryStatus;attempts:number;accuracy:number;confidence:number};
 export function chooseTutorPhase(m?:MasterySnapshot|null):TutorPhase{if(!m||m.status==="NOT_STARTED")return"DIAGNOSE";if(m.status==="REMEDIATE")return"REMEDIATE";if(m.status==="RETEST")return"RETEST";if(m.status==="MASTERED")return"ADVANCE";if(m.attempts<2)return"TEACH";if(m.confidence<.55)return"GUIDED_PRACTICE";return"INDEPENDENT_PRACTICE";}
