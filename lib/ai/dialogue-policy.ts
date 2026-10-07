@@ -5,7 +5,7 @@ export function planDialogue(message:string,history:ConversationTurn[]=[],studen
  const prior=history.slice(-6);const lastAssistant=[...prior].reverse().find(x=>x.role==="assistant")?.content??"";const lastUser=[...prior].reverse().find(x=>x.role==="user")?.content??"";
  let mode:DialogueMode="DIRECT_SOLUTION";
  if(/لا\s+(?:تعطيني|تقول|تكتب).*?(?:جواب|حل|ناتج)|تلميح|ساعدني\s+أفهم/i.test(message))mode="SOCRATIC_HINT";
- else if(/(?:حلي|حسبت|إجابتي|اجابتي).*?(?:صح|صحيح)|صح[؟?]?$/i.test(message))mode="VERIFY_STUDENT_WORK";
+ else if(/(?:حلي|حسبت|إجابتي|اجابتي).*?(?:صح|صحيح)|صح[؟?]?$|(?:أول|اول|الخطوة|أبدأ|ابدأ).*?(?:أطرح|اطرح|أضيف|اضيف|أقسم|اقسم|أضرب|اضرب).*?[؟?]?$/i.test(message))mode="VERIFY_STUDENT_WORK";
  else if(/ليش|لماذا|سبب|ليه/.test(message))mode="CONCEPT_EXPLANATION";
  else if(/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|بطريقة\s+ثانية|وضحها|الخطوة/.test(message))mode="RETEACH";
  else if(/دايم\s+أغلط|دائم.*أخط|صعب|صعبة|مو\s+فاهم/.test(message))mode="SUPPORT_AND_DIAGNOSE";
