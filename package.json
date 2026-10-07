@@ -14,7 +14,8 @@
     "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts",
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
-    "eval:generative-adversarial": "tsx scripts/benchmark-generative-adversarial.ts"
+    "eval:generative-adversarial": "tsx scripts/benchmark-generative-adversarial.ts",
+    "eval:saudi-dialect": "tsx scripts/benchmark-saudi-dialect.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
