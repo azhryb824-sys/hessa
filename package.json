@@ -15,7 +15,8 @@
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
     "eval:generative-adversarial": "tsx scripts/benchmark-generative-adversarial.ts",
-    "eval:saudi-dialect": "tsx scripts/benchmark-saudi-dialect.ts"
+    "eval:saudi-dialect": "tsx scripts/benchmark-saudi-dialect.ts",
+    "eval:saudi-fidelity": "tsx scripts/benchmark-saudi-dialect-fidelity.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
