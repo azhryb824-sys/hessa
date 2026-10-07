@@ -11,7 +11,7 @@ async function main(){
   {id:"division",turns:["لا تعطيني جواب 288 ÷ 8. أبغى تلميح.","أتوقع 37، صح؟","ما فهمت ليش غلط. استخدم طريقة ثانية بدون الحل."]}
  ];
  for(const suite of suites){const history:Turn[]=[];const answers:string[]=[];for(const message of suite.turns){const d=await ask(message,history);answers.push(d.answer!);history.push({role:"user",content:message},{role:"assistant",content:d.answer!})}
-  const joined=answers.join("\n");if(suite.id==="child"&&/\b24\b/.test(joined))throw new Error("child leaked 24");if(suite.id==="division"&&/\b36\b/.test(joined))throw new Error("division leaked 36");if(suite.id==="algebra"&&!/(صحيح|صح|بالضبط)/.test(answers[1]))throw new Error("algebra failed to acknowledge correct step");if(suite.id==="fractions"&&!/5\s*\/\s*6/.test(answers[0]))throw new Error("fraction correction missing 5/6");
-  console.log("\n==="+suite.id+"===");answers.forEach((a,i)=>console.log("TURN",i+1,a))}
+  const joined=answers.join("\n");console.log("\n===DEBUG "+suite.id+"===");answers.forEach((a,i)=>console.log("TURN",i+1,a));if(suite.id==="child"&&/\b24\b/.test(joined))throw new Error("child leaked 24");if(suite.id==="division"&&/\b36\b/.test(joined))throw new Error("division leaked 36");if(suite.id==="algebra"&&!/(صحيح|صح|بالضبط)/.test(answers[1]))throw new Error("algebra failed to acknowledge correct step");if(suite.id==="fractions"&&!/5\s*\/\s*6/.test(answers[0]))throw new Error("fraction correction missing 5/6");
+}
  console.log("\nTutor multi-turn HTTP E2E: PASS");
 }main().catch(e=>{console.error(e);process.exitCode=1});
