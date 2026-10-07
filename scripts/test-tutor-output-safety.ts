@@ -3,4 +3,4 @@ assert.equal(verifyExplicitArithmetic("9 × 7 = 63").ok,true);assert.equal(verif
 assert.equal(guardTutorResponse({userText:"لا تعطيني جواب 288 ÷ 8. أبغى تلميح.",response:"إذن الجواب هو 36.",knownAnswer:36}).ok,false);
 assert.equal(guardTutorResponse({userText:"ساعدني بتلميح",response:"فكر في العملية العكسية.",knownAnswer:36}).ok,true);
 assert.equal(guardTutorResponse({userText:"اشرح",response:"بعد التوحيد نجمع الحجم. ".repeat(12)}).ok,false);
-assert.equal(validateTutorOutput({userText:"تلميح فقط",response:"7 × 7 = 4",knownAnswer:49}).action,"REGENERATE");console.log("Tutor output safety tests: PASS");
+assert.equal(validateTutorOutput({userText:"تلميح فقط",response:"7 × 7 = 4",knownAnswer:49}).action,"REGENERATE");const exact="في هذا النمط نفترض أن 7 × 7 = 4. بعد التوحيد نجمع الحجم. ".repeat(10);const exactGate=validateTutorOutput({userText:"ما فهمت كيف أقرر إذا الاستدلال الرياضي في هذا البرهان صالح. اشرح بطريقة ثانية.",response:exact,previousResponses:["اقرأ البرهان مرة ثانية فقط."]});console.log("Exact generative bad-output gate:",JSON.stringify(exactGate,null,2));assert.equal(exactGate.ok,false);console.log("Tutor output safety tests: PASS");
