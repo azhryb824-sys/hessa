@@ -9,4 +9,4 @@ export async function getEntitlement(userId:string):Promise<Entitlement>{
  if(endsAt&&endsAt<=now)return{allowed:false,plan:sub.plan,reason:"EXPIRED",endsAt};
  return{allowed:true,plan:sub.plan,reason:"ACTIVE",endsAt:endsAt??null};
 }
-export async function requireEntitlement(userId:string){const e=await getEntitlement(userId);if(!e.allowed)throw new Error("SUBSCRIPTION_REQUIRED");return e;}
+export async function requireEntitlement(userId:string){if(process.env.NODE_ENV!=="production"&&process.env.HESSA_DEV_BYPASS_ENTITLEMENT==="true")return{allowed:true,plan:"DEV",reason:"DEV_BYPASS",endsAt:null};const e=await getEntitlement(userId);if(!e.allowed)throw new Error("SUBSCRIPTION_REQUIRED");return e;}
