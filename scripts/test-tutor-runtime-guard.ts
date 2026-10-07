@@ -3,7 +3,7 @@ class Fake implements HessaModelProvider{readonly name="fake";calls=0;constructo
 async function main(){
  // 1) Deterministic math path: provider must not be called.
  const deterministicProvider=new Fake(["SHOULD NOT BE USED"]);const deterministicCore=new HessaAICore(deterministicProvider);
- const d=await deterministicCore.tutor({message:"لا تعطيني جواب 288 ÷ 8. أبغى تلميح.",subject:"MATH",student:{},history:[],retrievedContext:[]} as any);
+ const d=await deterministicCore.tutor({message:"لا تعطيني جواب 288 ÷ 8. أبغى تلميح.",subject:"MATH",student:{},history:[],retrievedContext:["هذا سياق منهجي تجريبي عن التحقق من صلاحية الاستدلال في البراهين دون تقديم نتيجة عددية جاهزة."]} as any);
  assert.equal(deterministicProvider.calls,0);assert.ok(!d.answer.includes("36"));
  console.log("Deterministic tutor path: PASS",{providerCalls:deterministicProvider.calls,answer:d.answer.slice(0,120)});
 
@@ -13,7 +13,7 @@ async function main(){
    "خلّنا نغيّر الطريقة: مثّل الفكرة برسم بسيط، وحدد المعطيات أولًا ثم اكتب ملاحظتك بدون القفز إلى نتيجة نهائية."
  ]);
  const repairCore=new HessaAICore(repairProvider);
- const r=await repairCore.tutor({message:"ما فهمت كيف أقرر إذا الاستدلال الرياضي في هذا البرهان صالح. اشرح بطريقة ثانية.",subject:"MATH",student:{age:12},history:[{role:"assistant",content:"اقرأ البرهان مرة ثانية فقط."}],retrievedContext:[]} as any);
+ const r=await repairCore.tutor({message:"ما فهمت كيف أقرر إذا الاستدلال الرياضي في هذا البرهان صالح. اشرح بطريقة ثانية.",subject:"MATH",lessonTitle:"برهان استقرائي متقدم",student:{age:12},history:[{role:"assistant",content:"اقرأ البرهان مرة ثانية فقط."}],retrievedContext:[]} as any);
  assert.equal(repairProvider.calls,2);assert.ok(!r.answer.includes("7 × 7 = 4"));assert.ok(!r.answer.includes("بعد التوحيد نجمع الحجم"));
  console.log("Generative reject/regenerate path: PASS",{providerCalls:repairProvider.calls,answer:r.answer.slice(0,140)});
 
