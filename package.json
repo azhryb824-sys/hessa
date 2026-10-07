@@ -6,12 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint app lib prisma --max-warnings=0",
     "release:scan": "npx tsx scripts/release-identity-scan.ts",
     "release:math": "npx tsx scripts/benchmark-math.ts",
     "release:mastery": "npx tsx scripts/test-mastery-engine.ts",
     "science:math": "npx tsx scripts/benchmark-scientific-math.ts",
-    "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts"
+    "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts",
+    "postinstall": "prisma generate",
+    "prebuild": "prisma generate"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
