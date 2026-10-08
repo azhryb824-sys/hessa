@@ -18,7 +18,7 @@ export class OpenAICompatibleLocalProvider implements HessaModelProvider {
   ) { this.name = `open-weight:${this.model}`; }
 
   async generate(input: GenerationInput) {
-    const response = await fetch(`${this.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+    const root=this.baseUrl.replace(/\/$/, "");const endpoint=`${root.endsWith("/v1")?root:root+"/v1"}/chat/completions`;const response = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${this.apiKey}` },
       body: JSON.stringify({
@@ -31,7 +31,7 @@ export class OpenAICompatibleLocalProvider implements HessaModelProvider {
         ]
       })
     });
-    if (!response.ok) throw new Error(`Local LLM failed: HTTP ${response.status}`);
+    if (!response.ok){const body=await response.text();throw new Error(`Local LLM failed: HTTP ${response.status} ${body.slice(0,500)}`);}
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const answer = data.choices?.[0]?.message?.content?.trim();
     if (!answer) throw new Error("Local LLM returned an empty response");
