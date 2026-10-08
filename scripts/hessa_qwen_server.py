@@ -14,7 +14,7 @@ app=FastAPI()
 class Msg(BaseModel): role:Literal["system","user","assistant"];content:str
 class Req(BaseModel): model:Optional[str]=None;messages:List[Msg];temperature:float=.2;max_tokens:Optional[int]=220
 @app.get("/health")
-def health():return{"ok":True,"model":MODEL,"gpu":DEVICE}
+def health():return{"ok":True,"model":MODEL,"gpu":DEVICE,"precision":"4bit" if USE_4BIT else "fp16"}
 @app.post("/v1/chat/completions")
 def chat(r:Req):
  try:
