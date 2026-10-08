@@ -26,3 +26,9 @@ def chat(r:Req):
   ans=tok.decode(out[0][inputs["input_ids"].shape[1]:],skip_special_tokens=True).strip()
   return{"id":"hessa-local","object":"chat.completion","model":MODEL,"choices":[{"index":0,"message":{"role":"assistant","content":ans},"finish_reason":"stop"}]}
  except Exception as e: raise HTTPException(status_code=500,detail=str(e))
+
+if __name__=="__main__":
+ import uvicorn
+ host=os.getenv("HESSA_QWEN_HOST","127.0.0.1")
+ port=int(os.getenv("HESSA_QWEN_PORT","8000"))
+ uvicorn.run(app,host=host,port=port,log_level="info")
