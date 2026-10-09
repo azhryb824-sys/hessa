@@ -23,4 +23,4 @@ export function planDialogue(message:string,history:ConversationTurn[]=[],studen
  ].filter(Boolean);
  return{mode,resolvedMessage,priorContext:prior.map(x=>`${x.role==="user"?"الطالب":"المعلم"}: ${x.content}`).join("\n"),shouldRevealAnswer:!explicitNoReveal&&mode!=="SOCRATIC_HINT"&&!priorNoReveal,shouldCheckUnderstanding:["DIRECT_SOLUTION","CONCEPT_EXPLANATION","RETEACH"].includes(mode),instructions};
 }
-function isExplicitNoReveal(message:string){return /تلميح|لمّح|لمح|دفعة\s+بسيطة/.test(message)||(/(?:لا|ولا|بدون)/.test(message)&&/(?:تعطيني|تقول|تكتب|تحل|تحسب|تكشف|تطلع|تظهر)/.test(message)&&/(?:جواب|حل|ناتج|قيمة|المسألة|المساله)/.test(message));}
+function isExplicitNoReveal(message:string){return /تلميح|لمّح|لمح|دفعة\s+بسيطة/.test(message)||/(?:لا|ولا|بدون).*?(?:تحلها|تحسبها|تحله|تحسبه)(?:\s|[،؛.!؟?]|$)/.test(message)||(/(?:لا|ولا|بدون)/.test(message)&&/(?:تعطيني|تقول|تكتب|تحل|تحسب|تكشف|تطلع|تظهر)/.test(message)&&/(?:جواب|حل|ناتج|قيمة|المسألة|المساله)/.test(message));}
