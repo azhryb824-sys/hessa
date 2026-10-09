@@ -54,9 +54,9 @@ async function main(){const cookie=await login();let pass=0,sum=0;const failures
 for(const c of cases){const started=Date.now();const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),90000);let r:Response;
 try{r=await fetch(base+"/api/ai/tutor",{method:"POST",headers:{"content-type":"application/json",cookie},body:JSON.stringify({message:c.prompt,subject:"الرياضيات",student:{age:c.age,preferredDialect:c.dialect},history:c.history??[],retrievedContext:[]}),signal:controller.signal})}finally{clearTimeout(timer)}
 if(!r.ok){failures.push({...c,http:r.status,body:(await r.text()).slice(0,500)});console.log(`[${String(c.id).padStart(2,"0")}/40] FAIL HTTP ${r.status}`);continue}
-const j=await r.json();const answer=String(j.answer??"");const q=evaluateSaudiFidelityV5({answer,dialect:c.dialect,age:c.age,intent:c.intent,required:c.must,forbidden:c.mustNot});const ok=q.pass;sum+=q.score;if(ok)pass++;else failures.push({...c,score:q.score,issues:q.issues,answer});
-add(byDialect,c.dialect,ok,q.score);add(byIntent,c.intent,ok,q.score);add(byAge,c.age<=10?"7-10":c.age<=13?"11-13":"14-18",ok,q.score);
-console.log(`[${String(c.id).padStart(2,"0")}/40] ${ok?"PASS":"FAIL"} | ${c.dialect} | ${c.intent} | ${((Date.now()-started)/1000).toFixed(1)}s | ${q.score.toFixed(3)}`)}
+const j=await r.json();const answer=String(j.answer??"");const q=evaluateSaudiFidelityV5(answer,{dialect:c.dialect,prompt:c.prompt,age:c.age,required:c.must});const forbidden=!!c.mustNot?.test(answer);const ok=q.pass&&!forbidden;const score=forbidden?Math.min(q.score,.5):q.score;sum+=score;if(ok)pass++;else failures.push({...c,score,issues:[...q.issues,...(forbidden?["FORBIDDEN_OUTPUT"]:[])],answer});
+add(byDialect,c.dialect,ok,score);add(byIntent,c.intent,ok,score);add(byAge,c.age<=10?"7-10":c.age<=13?"11-13":"14-18",ok,score);
+console.log(`[${String(c.id).padStart(2,"0")}/40] ${ok?"PASS":"FAIL"} | ${c.dialect} | ${c.intent} | ${((Date.now()-started)/1000).toFixed(1)}s | ${score.toFixed(3)}`)}
 const norm=(o:any)=>Object.fromEntries(Object.entries(o).map(([k,v]:any)=>[k,{passed:v.p,total:v.t,rate:+(v.p/v.t).toFixed(3),score:+(v.s/v.t).toFixed(3)}]));
 const out={suite:"hessa-saudi-generalization-holdout-v1",frozen:true,passed:pass,total:cases.length,rate:+(pass/cases.length).toFixed(3),overall:+(sum/cases.length).toFixed(3),byDialect:norm(byDialect),byIntent:norm(byIntent),byAge:norm(byAge),failures};
 console.log(JSON.stringify(out,null,2));if(pass/cases.length<.85)process.exitCode=1}
