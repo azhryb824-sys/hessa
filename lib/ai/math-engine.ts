@@ -55,7 +55,7 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const multiStepMoney = text.match(/مع\s+[^\d]{0,20}(\d+)\s*ريال[^\d]{0,30}(?:اشترى|دفع)[^\d]{0,15}(\d+)\s*ريال[^\d]{0,35}(?:أعطاه|اعطاه|حصل|زاد)[^\d]{0,15}(\d+)\s*ريال/i);
   if(multiStepMoney){const a=Number(multiStepMoney[1]),spent=Number(multiStepMoney[2]),added=Number(multiStepMoney[3]),value=a-spent+added;return{kind:"multi-step-money",expectedAnswer:format(value),answer:`نحل حسب ترتيب أحداث المسألة: نبدأ بـ ${a}، ثم نطرح ${spent} لأنه دفعها: ${a} - ${spent} = ${format(a-spent)}. بعد ذلك نضيف ${added}: ${format(a-spent)} + ${added} = ${format(value)}. إذن معه الآن ${format(value)} ريالًا.`};}
 
-  const groupsWord = text.match(/(\d+)\s+مجموعات[^\d]{0,30}(?:في\s+كل\s+مجموعة|بكل\s+مجموعة)[^\d]{0,15}(\d+)\s+(?:عناصر|عنصر)/i);
+  const groupsWord = text.match(/(\d+)\s+مجموعات[^\d]{0,30}(?:(?:في\s+)?كل\s+(?:مجموعة|وحدة)|بكل\s+مجموعة)[^\d]{0,15}(\d+)(?:\s+(?:عناصر|عنصر|أشياء|اشياء|كرات|حبات))?/i);
   if(groupsWord){const a=Number(groupsWord[1]),b=Number(groupsWord[2]),value=a*b;return{kind:"groups-multiplication",expectedAnswer:format(value),answer:`عندنا ${a} مجموعات، في كل مجموعة ${b} عناصر، إذن نضرب: ${a} × ${b} = ${format(value)}.`};}
 
   const shareWord = text.match(/(?:وزع|وزّع|وُزّع)\s+(\d+)\s+(?:عنصرًا|عنصرا|عنصر)[^\d]{0,30}(?:على|إلى)\s+(\d+)\s+مجموعات/i);
