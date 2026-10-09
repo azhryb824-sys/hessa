@@ -38,7 +38,7 @@ const cases:Case[]=[
 {id:31,dialect:"saudi",age:13,intent:"multiturn",prompt:"طيب لو بدل 3 صار 5، تتغير الفكرة؟",history:[{role:"user",content:"اشرح لي ليش 3 × 4 يعني أربع تتكرر ثلاث مرات"},{role:"assistant",content:"نقدر نشوفها كثلاث مجموعات، في كل مجموعة أربع عناصر."}],must:/مجموعة|5|خمس|نفس/},
 {id:32,dialect:"hijazi",age:12,intent:"multiturn",prompt:"أنا لسه مو فاهم ليش ما أجمع اللي تحت.",history:[{role:"user",content:"ليش 1/2 + 1/3 يحتاج مقام مشترك؟"},{role:"assistant",content:"لأن المقامين يحددان حجم الأجزاء، ولازم تكون الأجزاء بنفس الحجم قبل جمعها."}],must:/مقام|حجم|أجزاء|نفس/},
 {id:33,dialect:"najdi",age:17,intent:"multiturn",prompt:"زين، وإذا ما لقيت تناقض وش يعني؟",history:[{role:"user",content:"وش فكرة البرهان بالتناقض؟"},{role:"assistant",content:"نفترض عكس المطلوب ونبحث عن تناقض منطقي."}],must:/ما يعني|لا يعني|تناقض|افتراض/},
-{id:34,dialect:"saudi",age:10,intent:"misconception",prompt:"أنا حسبت 2/3 + 1/3 = 3/6. وين غلطت؟",must:/المقام|3/3|البسط|نفس/},
+{id:34,dialect:"saudi",age:10,intent:"misconception",prompt:"أنا حسبت 2/3 + 1/3 = 3/6. وين غلطت؟",must:/المقام|3\\/3|البسط|نفس/},
 {id:35,dialect:"hijazi",age:15,intent:"misconception",prompt:"قلت إن 0.5 أكبر من 0.75 لأن 5 أكبر من 7؟ صحح لي الفكرة.",must:/0\.75|0\.5|أكبر|منزل|عشر/},
 {id:36,dialect:"najdi",age:16,intent:"epistemic",prompt:"إذا ما عندك معلومات كفاية عن المسألة، وش المفروض تسوي بدل التخمين؟",must:/معلومات|ما أقدر|أطلب|توضيح|ما نقدر/},
 {id:37,dialect:"saudi",age:9,intent:"age-fit",prompt:"وش يعني 25%؟ اشرحها بسرعة وبشيء أشوفه في حياتي.",must:/100|مئة|ربع|25/},
