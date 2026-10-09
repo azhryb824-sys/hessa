@@ -2,6 +2,8 @@ import type{RetrievalDocument,StudentState}from"./types";
 export type ConceptResponse={answer:string;concept:string;confidence:number};
 export function teachKnownConcept(message:string,student:StudentState={},docs:RetrievalDocument[]=[]):ConceptResponse|null{
  const young=(student.age??99)<=10;
+ const verbalFraction=parseArabicVerbalFraction(message);
+ if(verbalFraction)return{concept:"verbal-fraction",confidence:.99,answer:young?`${verbalFraction.label} يعني نقسم الشيء ${verbalFraction.den} أجزاء قد بعض ونأخذ ${verbalFraction.num} منها. تخيّل شكلًا مقسمًا ${verbalFraction.den} أجزاء متساوية وظلّل ${verbalFraction.num}.`:`${verbalFraction.label} تعني ${verbalFraction.num} من ${verbalFraction.den} أجزاء متساوية من الكل، أي ${verbalFraction.num}/${verbalFraction.den}.`};
  if(/(?:ثلاثة|ثلاث|3)\s+(?:أرباع|ارباع)|(?:ثلاثة\s+من\s+أربعة)/.test(message))return{concept:"three-quarters",confidence:.99,answer:young?"ثلاثة أرباع يعني نقسم الشيء 4 قطع قد بعض ونأخذ 3 قطع. تخيّل دائرة مقسمة أربع قطع متساوية وظلّل ثلاث منها.":"ثلاثة أرباع تعني 3 من 4 أجزاء متساوية من الكل، أي 3/4."};
  if(/(?:نص|نصف).*?(?:ثلث|الثُلث|الثلث)|(?:ثلث|الثُلث|الثلث).*?(?:نص|نصف)/.test(message))return{concept:"half-vs-third",confidence:.99,answer:young?"النص أكبر من الثلث. لو قسمنا نفس الشيء قطعتين، قطعة النص تكون أكبر من قطعة لما نقسمه 3 قطع متساوية.":"النصف أكبر من الثلث؛ لأن تقسيم نفس الكل إلى جزأين يعطي أجزاء أكبر من تقسيمه إلى ثلاثة أجزاء متساوية."};
  if(/(?:حول|حواف|حدود|أطراف).*?(?:شكل|الشكل).*?(?:اسمه|اسم|أقيس|اقيس)|(?:مشيت|أمشي|امشي).*?(?:حول|حواف).*?(?:شكل|الشكل)/.test(message))return{concept:"perimeter-from-description",confidence:.99,answer:young?"هذا اسمه المحيط: طول الطريق كله حول حواف الشكل.":"هذا هو المحيط: طول الحدود الخارجية للشكل."};
@@ -26,5 +28,15 @@ export function teachKnownConcept(message:string,student:StudentState={},docs:Re
  if(/(?:الكسور|كسر).*?(?:صعب|صعبة|أغلط|اغلط|مو فاهم)|(?:صعب|صعبة|أغلط|اغلط).*?(?:الكسور|كسر)/i.test(message))return{concept:"fraction-foundation",confidence:.97,answer:"نبدأ من الأساس بدل ما نحاول نحفظ القواعد. الكسر يصف أجزاء متساوية من شيء كامل: في 1/2، الرقم 2 يقول إن الكل انقسم إلى جزأين متساويين، والرقم 1 يقول إننا أخذنا جزءًا واحدًا. خلّنا نشخّصها بسؤال صغير: لو قسمنا بيتزا إلى 4 قطع متساوية وأخذنا قطعة واحدة، أي كسر يمثل القطعة؟"};
  if(/ما معنى|اشرح.*(?:بسط|مقام)/.test(message))return{concept:"fraction-parts",confidence:.95,answer:"المقام يخبرنا إلى كم جزء متساوٍ قُسم الكل، والبسط يخبرنا كم جزءًا أخذنا أو نتحدث عنه. مثال: 3/4 يعني أن الكل مقسم إلى 4 أجزاء متساوية وأخذنا 3 منها."};
  if(docs.length&&/اشرح|فهم|وضح/.test(message))return{concept:"retrieved-concept",confidence:.8,answer:`خلّنا نبني الفكرة من معناها: ${docs[0].content.slice(0,500)}`};
+ return null;
+}
+function parseArabicVerbalFraction(message:string){
+ const denoms:Array<[RegExp,number,string]>=[
+  [/(?:أنصاف|انصاف)/,2,"أنصاف"],[/(?:أثلاث|اثلاث)/,3,"أثلاث"],[/(?:أرباع|ارباع)/,4,"أرباع"],
+  [/(?:أخماس|اخماس)/,5,"أخماس"],[/(?:أسداس|اسداس)/,6,"أسداس"],[/(?:أسباع|اسباع)/,7,"أسباع"],
+  [/(?:أثمان|اثمان)/,8,"أثمان"],[/(?:أتساع|اتساع)/,9,"أتساع"],[/(?:أعشار|اعشار)/,10,"أعشار"]
+ ];
+ const nums:Array<[RegExp,number]>=[[/\b(?:واحد|واحدة)\b/,1],[/\b(?:اثنين|اثنان|اثنتين|اثنتان)\b/,2],[/\b(?:ثلاثة|ثلاث)\b/,3],[/\b(?:أربعة|اربعة|أربع|اربع)\b/,4],[/\b(?:خمسة|خمس)\b/,5],[/\b(?:ستة|ست)\b/,6],[/\b(?:سبعة|سبع)\b/,7],[/\b(?:ثمانية|ثمان)\b/,8],[/\b(?:تسعة|تسع)\b/,9]];
+ for(const [dr,den,label] of denoms){if(!dr.test(message))continue;for(const [nr,num] of nums){if(num<den&&nr.test(message))return{num,den,label:`${num===1?"واحد":message.match(nr)?.[0]??num} ${label}`}}}
  return null;
 }
