@@ -1,3 +1,5 @@
+import { resolveRectangleContext } from "./rectangle-context";
+import { resolveFractionTeaching } from "./fraction-teaching";
 import {semanticRouteV2} from "./semantic-router-v2";import {enforceChildResponse} from "./child-response-guard";import {solveDeterministicMath,verifyMathAnswer} from "./math-engine";import {pedagogyPolicy} from "./pedagogy";import {createModelProvider,type HessaModelProvider} from "./provider";import {retrieveRelevant} from "./retrieval";import {routeSubject} from "./router";import {planDialogue} from "./dialogue-policy";import {teachKnownConcept} from "./concept-tutor";import {chooseTutorPhase,phaseInstruction} from "./tutor-state";import {critiqueTutorAnswer} from "./response-critic";import {buildLearningVisual} from "./learning-visuals";import type {TutorRequest,TutorResponse,VerificationResult} from "./types";import {validateTutorOutput} from "./tutor-output-validator";import {evaluateSemanticTutorQuality} from "./semantic-tutor-guard";import {evaluateGenerativeQuality} from "./generative-quality-guard";import {evaluateSaudiDialectContamination} from "./saudi-dialect-guard";import {evaluateSaudiLinguisticQuality} from "./saudi-linguistic-quality";
 export class HessaAICore{
  constructor(private readonly provider:HessaModelProvider=createModelProvider()){}
@@ -7,11 +9,55 @@ export class HessaAICore{
   const subject=routeSubject(message,request.subject);const pedagogy=pedagogyPolicy(request.student);const plan=planDialogue(message,request.history,request.student);const tutorPhase=chooseTutorPhase(request.mastery);
   const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
   const highConfidence=subject==="MATH"?resolveHighConfidencePedagogy(message,request.history??[]):null;const scriptedFollowUp=subject==="MATH"?resolveScriptedMathFollowUp(message,request.history??[],plan.mode):null;
-  const conceptualQuestion=semantic.conceptual||plan.mode==="CONCEPT_EXPLANATION";const misconceptionQuestion=semantic.misconception;const deterministic=subject==="MATH"&&!conceptualQuestion&&!misconceptionQuestion?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(message,request.student,documents):null;let answer:string;let verification:VerificationResult;
-  if(subject==="MATH"&&!plan.shouldRevealAnswer&&deterministic){answer=buildContextAwareHint(message,plan.resolvedMessage,"SOCRATIC_HINT");verification={verified:true,confidence:.99,method:"no-reveal-constraint-engine",expectedAnswer:deterministic.expectedAnswer,issues:[]};}
+  const conceptualQuestion=semantic.conceptual||plan.mode==="CONCEPT_EXPLANATION";const misconceptionQuestion=semantic.misconception;const deterministic=subject==="MATH"&&!conceptualQuestion&&!misconceptionQuestion?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(
+      plan.mode==="RETEACH"
+        ?([...(request.history??[])].reverse()
+          .find(turn=>turn.role==="user"&&
+            semanticRouteV2(turn.content).intent!=="reteach")
+          ?.content??message)
+        :message,
+      request.student,documents
+    ):null;let answer:string;let verification:VerificationResult;
+
+const fractionTeaching=subject==="MATH"
+ ?resolveFractionTeaching(
+   message,
+   plan.shouldRevealAnswer,
+   semantic.misconception||semantic.intent==="verify"
+  ):null;
+
+const rectangleTeaching=subject==="MATH"
+ ?resolveRectangleContext(message,request.history??[],plan.shouldRevealAnswer):null;
+ const hasWork=semantic.mathExpression||
+ /[0-9٠-٩۰-۹]/.test(message)||
+ (request.history??[]).some(turn=>
+   turn.role==="user"&&(
+     semanticRouteV2(turn.content).mathExpression||
+     /[0-9٠-٩۰-۹]/.test(turn.content)
+   )
+ );
+
+if(subject==="MATH"&&semantic.intent==="verify"&&!hasWork){
+ answer="أرسل لي نص السؤال وخطوات حلك، وأنا أراجعها معك وأحدد أي خطوة تحتاج تصحيح.";
+ verification={
+   verified:false,
+   confidence:0,
+   method:"student-work-required",
+   issues:["لم يرسل الطالب خطوات حل يمكن التحقق منها."]
+ };
+}
+else if(rectangleTeaching){
+ answer=rectangleTeaching.answer;
+ verification=rectangleTeaching.verification;
+}
+else if(fractionTeaching){
+ answer=fractionTeaching.answer;
+ verification=fractionTeaching.verification;
+}
+else if(subject==="MATH"&&!plan.shouldRevealAnswer&&deterministic){answer=buildContextAwareHint(normalizeHintDigits(message),normalizeHintDigits(plan.resolvedMessage),"SOCRATIC_HINT");verification={verified:true,confidence:.99,method:"no-reveal-constraint-engine",expectedAnswer:deterministic.expectedAnswer,issues:[]};}
   else if(highConfidence){answer=adaptFallbackDialect(highConfidence.answer,request.student?.preferredDialect);verification={verified:true,confidence:.99,method:highConfidence.method,issues:[]};}
   else if(scriptedFollowUp){answer=adaptFallbackDialect(scriptedFollowUp.answer,request.student?.preferredDialect);verification={verified:true,confidence:.99,method:scriptedFollowUp.method,expectedAnswer:scriptedFollowUp.expectedAnswer,issues:[]};}
-  else if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE"||plan.mode==="RETEACH"||(plan.mode==="DIRECT_SOLUTION"&&!deterministic&&concept.confidence>=.95))){answer=plan.mode==="RETEACH"?buildConceptReteach(concept.concept,concept.answer,request.student?.age):concept.answer;verification={verified:true,confidence:concept.confidence,method:plan.mode==="RETEACH"?"concept-reteach-engine":"concept-curriculum-engine",issues:[]};}
+  else if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE"||plan.mode==="RETEACH"||(plan.mode==="DIRECT_SOLUTION"&&!deterministic&&concept.confidence>=.95))){answer=plan.mode==="RETEACH"?buildConceptReteach(concept.concept,concept.answer,request.student?.age,(request.history??[]).filter(turn=>turn.role==="assistant").map(turn=>turn.content)):concept.answer;verification={verified:true,confidence:concept.confidence,method:plan.mode==="RETEACH"?"concept-reteach-engine":"concept-curriculum-engine",issues:[]};}
   else if(subject==="MATH"&&plan.mode==="RETEACH"&&/(?:مثلث|مساح)/.test(plan.resolvedMessage)){
     const repeated=(request.history??[]).filter(x=>x.role==="user"&&/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|لا\s*تكرر|تصور\s*مختلف/.test(x.content)).length;
     answer=repeated>=1||/لا\s*تكرر|تصور\s*مختلف/.test(message)
@@ -20,23 +66,39 @@ export class HessaAICore{
     verification={verified:true,confidence:.99,method:"concept-triangle-reteach-engine",issues:[]};
   }
   else if(deterministic&&(!plan.shouldRevealAnswer||plan.mode==="PRACTICE_REQUEST")){
-    answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
+    answer=buildContextAwareHint(normalizeHintDigits(message),normalizeHintDigits(plan.resolvedMessage),plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
   }else if(activeMath){
     answer=adaptDeterministicAnswer(message,activeMath.answer,plan.mode,plan.shouldCheckUnderstanding);verification=verifyMathAnswer(plan.resolvedMessage,activeMath.answer);
   }else{
-    const dialectPolicy=buildSaudiDialectPolicy(request.student?.preferredDialect);const system=["أنت مدرس حصة الذكي، مدرس شخصي تفاعلي وليس آلة إجابات.",`المادة: ${subject}. المرحلة: ${pedagogy.stage}.`,dialectPolicy,...pedagogy.rules,...plan.instructions,phaseInstruction(tutorPhase),plan.priorContext?"استخدم سياق الحوار السابق لحل الإشارات والمتابعة، ولا تتظاهر بأن الرسالة مستقلة.":"",documents.length?"التزم بالمحتوى المسترجع ولا تخترع حقائق غير موجودة فيه.":"إذا لم تتوفر معرفة موثوقة فلا تخمّن."].filter(Boolean).join("\n");
+    const dialectPolicy=buildSaudiDialectPolicy(request.student?.preferredDialect);const system=["أنت مدرس حصة الذكي، مدرس شخصي تفاعلي وليس آلة إجابات.",`المادة: ${subject}. المرحلة: ${pedagogy.stage}.`,dialectPolicy,...pedagogy.rules,...plan.instructions,(tutorPhase==="DIAGNOSE"&&plan.mode!=="SUPPORT_AND_DIAGNOSE"?"أجب عن طلب الطالب مباشرة. لا تفرض اختبار مستوى قبل شرح سؤال واضح.":phaseInstruction(tutorPhase)),plan.priorContext?"استخدم سياق الحوار السابق لحل الإشارات والمتابعة، ولا تتظاهر بأن الرسالة مستقلة.":"",documents.length?"التزم بالمحتوى المسترجع ولا تخترع حقائق غير موجودة فيه.":"إذا لم تتوفر معرفة موثوقة فلا تخمّن."].filter(Boolean).join("\n");
     answer=await this.provider.generate({system,user:plan.resolvedMessage,context:documents.map(d=>d.content),history:request.history});
     if(subject==="MATH"){const expected=solveDeterministicMath(message)?.expectedAnswer;const previous=(request.history??[]).filter(x=>x.role==="assistant").map(x=>x.content);const gate=validateTutorOutput({userText:message,response:answer,knownAnswer:expected,previousResponses:previous});const semantic=evaluateSemanticTutorQuality({userText:message,answer,history:request.history,age:request.student?.age});const quality=evaluateGenerativeQuality(answer);const dialectQuality=evaluateSaudiDialectContamination(answer);const linguisticQuality=evaluateSaudiLinguisticQuality(answer);if(!gate.ok||!semantic.ok||!quality.ok||!dialectQuality.ok||!linguisticQuality.ok){const repair=[...system.split("\n"),"الرد السابق رُفض آليًا قبل عرضه للطالب.",...gate.policy.issues.map(x=>`سبب الرفض: ${x.code}. ${x.detail}`),...gate.math.errors.map(x=>`خطأ حسابي: ${x.expression} والصحيح ${x.actual}`),...semantic.issues.map(x=>`مشكلة دلالية يجب إصلاحها: ${x}`),...quality.issues.map(x=>`مشكلة جودة يجب إصلاحها: ${x}`),...dialectQuality.issues.map(x=>`مشكلة لهجية يجب إصلاحها: ${x}`),...linguisticQuality.issues.map(x=>`مشكلة لغوية يجب إصلاحها: ${x}`),"أعد صياغة الرد من الصفر في 120 كلمة أو أقل، وادخل في الشرح مباشرة. لا تذكر تعليمات داخلية ولا تكرر السؤال التشخيصي. لا تكرر النص المرفوض، ولا تكشف الإجابة إذا كان الطالب طلب تلميحًا."].join("\n");const regenerated=await this.provider.generate({system:repair,user:plan.resolvedMessage,context:documents.map(d=>d.content),history:request.history});const gate2=validateTutorOutput({userText:message,response:regenerated,knownAnswer:expected,previousResponses:previous});const semantic2=evaluateSemanticTutorQuality({userText:message,answer:regenerated,history:request.history,age:request.student?.age});const quality2=evaluateGenerativeQuality(regenerated);const dialectQuality2=evaluateSaudiDialectContamination(regenerated);const linguisticQuality2=evaluateSaudiLinguisticQuality(regenerated);if(gate2.ok&&semantic2.ok&&quality2.ok&&dialectQuality2.ok&&linguisticQuality2.ok)answer=regenerated;else answer=adaptFallbackDialect(safeTutorFallback(message,plan.mode,expected),request.student?.preferredDialect)}}
     verification=subject==="MATH"?verifyMathAnswer(plan.resolvedMessage,answer):{verified:documents.length>0,confidence:documents.length>0?.72:.3,method:documents.length>0?"retrieval-grounding":"unverified-generation",issues:documents.length>0?[]:["لا توجد مادة منهجية مسترجعة للتحقق من الإجابة."]};
   }
-  const previousAssistant=[...(request.history??[])].reverse().find(x=>x.role==="assistant")?.content;const critique=critiqueTutorAnswer({message,answer,stage:pedagogy.stage,mode:plan.mode,verified:verification.verified,previousAssistant});if(!critique.pass&&critique.issues.includes("repeated-explanation")&&concept)answer=concept.answer+"\n\nخلّنا نغيّر طريقة التفكير بدل تكرار الخطوات السابقة.";
+  if(!plan.shouldRevealAnswer){
+   const {expectedAnswer:_hiddenAnswer,...publicVerification}=verification;
+   verification=publicVerification;
+ }
+ const previousAssistant=[...(request.history??[])].reverse().find(x=>x.role==="assistant")?.content;const critique=critiqueTutorAnswer({message,answer,stage:pedagogy.stage,mode:plan.mode,verified:verification.verified,studentWorkAvailable:hasWork,previousAssistant});if(!critique.pass&&critique.issues.includes("repeated-explanation")&&concept)answer=concept.answer+"\n\nخلّنا نغيّر طريقة التفكير بدل تكرار الخطوات السابقة.";
   answer=adaptFallbackDialect(answer,request.student?.preferredDialect);
   const childGuard=enforceChildResponse(answer,request.student?.age);answer=childGuard.answer;
-  const visual=buildLearningVisual(message);
-  return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:activeMath?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:[...critique.issues,...childGuard.issues],semanticRoute:semantic,visual}};
+  const visual=plan.shouldRevealAnswer?buildLearningVisual(message):null;
+  return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:rectangleTeaching?"contextual-geometry":verification.method.startsWith("concept-")?"concept-teaching":verification.method==="student-work-required"?"dialogue-policy":fractionTeaching?"deterministic-fraction-teaching":activeMath?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:[...critique.issues,...childGuard.issues],semanticRoute:semantic,visual}};
  }
 }
-function buildConceptReteach(concept:string,base:string,age?:number){const young=(age??99)<=10;if(concept==="fraction-foundation"||concept==="fraction-meaning")return young?"خلّنا نترك الأرقام شوي: ارسم دائرة وقسمها قطعًا متساوية، ثم ظلّل بعض القطع. عدد القطع كلها هو المقام، وعدد المظللة هو البسط. كذا نشوف الكسر بدل ما نحفظه.":"غيّر التمثيل إلى نموذج مساحة: ارسم شكلًا مقسمًا إلى أجزاء متساوية، ثم مثّل البسط بالتظليل والمقام بعدد الأجزاء كلها. هذا يربط الرمز بالكمية بصريًا.";if(/variable/.test(concept))return"بدل التعريف، تخيّل صندوقًا مغلقًا عليه حرف س. ما نعرف الرقم داخله للحين؛ كل معلومة في المسألة تساعدنا نعرف محتوى الصندوق. س هو اسم مؤقت للقيمة المجهولة.";return young?"خلّنا نغيّر الطريقة ونستخدم رسمًا أو أشياء قدامنا بدل تكرار الكلام: "+base:"خلّنا نغيّر زاوية الشرح ونربط الفكرة بتمثيل مختلف بدل تكرار التعريف: "+base;}
+function buildConceptReteach(concept:string,base:string,age?:number,previous:string[]=[]){
+ if(concept==="half-as-equal-parts"){
+ const examples=[
+  {marker:"6 مكعبات",answer:"خلنا نجرب بأشياء قدامنا: حط 6 مكعبات ووزعها بالتساوي بين صندوقين. يصير في كل صندوق 3 مكعبات. كل صندوق فيه نصف المكعبات لأن المجموعتين قد بعض. لو كانت مجموعة أكبر من الثانية، ما تكون كل مجموعة نصف الكمية."},
+  {marker:"منتصف الطريق",answer:"تخيل طريقًا من بيتك للمدرسة. وقف في منتصف الطريق: المسافة اللي مشيتها تساوي المسافة اللي باقي تمشيها. كل مسافة تمثل نصف الطريق. النصف مهمته يقسم الكمية إلى جزئين قد بعض."},
+  {marker:"كوب عصير",answer:"تخيل كوب عصير كامل. وزع العصير بالتساوي على كوبين متماثلين، بدون ما يبقى شيء في الكوب الأول. كل كوب من الاثنين فيه نصف كمية العصير الأصلية، لأن الكميتين متساويتان."}
+ ];
+ const unused=examples.find(example=>
+  !previous.some(answer=>answer.includes(example.marker))
+ );
+ return unused?.answer??"خلنا نتأكد من الفكرة بدل إعادة الأمثلة: إذا قسمنا كمية إلى مجموعتين، وش لازم يكون صحيحًا في المجموعتين عشان نسمي كل مجموعة نصف الكمية؟";
+}
+const young=(age??99)<=10;if(concept==="fraction-foundation"||concept==="fraction-meaning")return young?"خلّنا نترك الأرقام شوي: ارسم دائرة وقسمها قطعًا متساوية، ثم ظلّل بعض القطع. عدد القطع كلها هو المقام، وعدد المظللة هو البسط. كذا نشوف الكسر بدل ما نحفظه.":"غيّر التمثيل إلى نموذج مساحة: ارسم شكلًا مقسمًا إلى أجزاء متساوية، ثم مثّل البسط بالتظليل والمقام بعدد الأجزاء كلها. هذا يربط الرمز بالكمية بصريًا.";if(/variable/.test(concept))return"بدل التعريف، تخيّل صندوقًا مغلقًا عليه حرف س. ما نعرف الرقم داخله للحين؛ كل معلومة في المسألة تساعدنا نعرف محتوى الصندوق. س هو اسم مؤقت للقيمة المجهولة.";return young?"خلّنا نغيّر الطريقة ونستخدم رسمًا أو أشياء قدامنا بدل تكرار الكلام: "+base:"خلّنا نغيّر زاوية الشرح ونربط الفكرة بتمثيل مختلف بدل تكرار التعريف: "+base;}
 function resolveHighConfidencePedagogy(message:string,history:Array<{role:"user"|"assistant";content:string}>){ if(/(?:نمط|قاعدة).*?(?:كم|عدة|بعض|أول).*?(?:حد|حدود|مثال).*?(?:الوحيد|وحيدة|أجزم|اثبت|أثبت|يكفي)|(?:هل|أقدر|اقدر).*?(?:حدود|أمثلة|امثلة).*?(?:تثبت|تكفي).*?(?:قاعدة|نمط)/.test(message))return{answer:"لا، توافق قاعدة مع عدد محدود من الحدود أو الأمثلة ما يثبت إنها القاعدة الوحيدة. ممكن أكثر من قاعدة توافق نفس الأمثلة ثم تختلف بعدها. نحتاج معطيات إضافية أو برهان يثبت القاعدة بشكل عام.",method:"finite-evidence-generalization-engine"}; if(/(?:الفرق|أفرق|افرق).*?(?:تحقق|تحققت|مثال).*?(?:برهان|أثبت|اثبت|قاعدة)|(?:تحقق|مثال).*?(?:برهان|إثبات|اثبات).*?(?:فرق|أفرق|افرق)/.test(message))return{answer:"التحقق من مثال يثبت أن القاعدة نجحت في هذي الحالة فقط. البرهان يوضح ليش القاعدة صحيحة لكل الحالات اللي تنطبق عليها شروطها. يعني المثال يعطي دليلًا جزئيًا، أما البرهان فيثبت الحكم بشكل عام.",method:"example-vs-proof-engine"}; if(/(?:زاويتين|زاويتان).*?(?:متساويت|نفس).*?(?:تخمين|كيف)|كيف.*?(?:زاويتين|زاويتان).*?(?:متساويت)/.test(message))return{answer:"ما نعتمد على شكل الزاويتين بس. نتأكد بدليل: يا إن قياسهما نفس العدد، أو عندنا خاصية هندسية تثبت تساويهما مثل الزوايا المتقابلة بالرأس أو الناتجة عن تطابق. إذا ما عندنا قياس أو خاصية، ما نجزم بالتساوي.",method:"geometry-equality-evidence-engine"}; if(/(?:أوحّد|اوحد|توحيد).*?(?:المقامات|المقام)|(?:المقامات).*?(?:جمع|كسرين|كسور)/.test(message))return{answer:"لازم نوحّد المقامات لأن المقام يحدد حجم الجزء. ما نقدر نجمع أجزاء بأحجام مختلفة مباشرة؛ أول نخلي الأجزاء بنفس الحجم بمقام مشترك، وبعدها نجمع البسط ونبقي المقام المشترك.",method:"common-denominator-concept-engine"}; if(/(?:1|١)\s*[،,]\s*(?:2|٢)\s*[،,]\s*(?:4|٤).*?(?:8|٨)|(?:الحد\s+الجاي|الحد\s+التالي).*?(?:8|٨)/.test(message))return{answer:"مو أكيد إن الحد الجاي 8. التضاعف يعطي 8 كاحتمال، بس من 1، 2، 4 لحالها ما نقدر نثبت إن هذي القاعدة الوحيدة؛ ممكن قواعد ثانية توافق الحدود الثلاثة وتعطي حدًا مختلفًا.",method:"sequence-uncertainty-engine"}; if(/(?:حلي|الحل).*?(?:طويل|بدون.*?أعيد|بدون.*?اعيد)|(?:أتأكد|اتاكد).*?(?:حلي|الحل).*?(?:طويل|كله)/.test(message))return{answer:"عشان تراجع حل طويل بدون ما تعيده كله، راجع المعطيات أول، ثم تأكد إن كل خطوة لها قاعدة تبررها، وبعدها اختبر الناتج بالتعويض أو بطريقة مستقلة إذا تقدر. ركّز على الخطوات اللي تغيّر شكل المسألة؛ غالبًا الخطأ يظهر هناك.",method:"solution-review-strategy-engine"}; if(/(?:الفروق\s+الأولى|الفروق الاولى).*?(?:مو|غير).*?ثابت/.test(message))return{answer:"إذا الفروق الأولى مو ثابتة، افحص الفروق الثانية أول. إذا كانت ثابتة فهذا يشير غالبًا لنمط تربيعي. وإذا ما ثبتت، افحص النسب أو علاقة رقم الحد بقيمته، ولا تعتمد قاعدة إلا إذا وافقت كل الحدود.",method:"difference-pattern-strategy-engine"};
  if(/(?:الفروق|فروق).*?(?:غير\s+ثابتة|مو\s+ثابتة|ليست\s+ثابتة)/.test(message)&&/(?:نمط|قاعدة)/.test(message))return{answer:"بما أن الفروق غير ثابتة، لا تفترض أن النمط حسابي. افحص الفروق الأولى ثم الفروق الثانية. إذا ما ظهر نمط واضح، افحص النسب بين الحدود، وبعدها العلاقة بين رقم الحد وقيمته. لا تعتمد أي قاعدة إلا إذا طابقت جميع الحدود المعطاة، واختبرها على حد إضافي إذا توفر.",method:"nonconstant-pattern-strategy-engine"};
  if(/(?:البرهان|الشرح|المثال|الحل)\s+السابق/.test(message)&&!history.some(x=>x.role==="assistant"&&x.content.trim()))return{answer:"ما عندي محتوى البرهان السابق في سياق المحادثة الحالية. أرسل البرهان أو الجزء الذي ما فهمته، وسأعيد شرحه بطريقة مختلفة بدل ما أفترض محتواه.",method:"context-honesty-engine"};
@@ -60,6 +122,20 @@ function resolveScriptedMathFollowUp(message:string,history:Array<{role:"user"|"
  return null;
 }
 function buildContextAwareHint(message:string,resolved:string,mode:string){
+ const attempt=message.match(/(?:جربت|حسبت|حلي|محاولتي)\s*(-?\d+(?:\.\d+)?)/);
+ const division=resolved.match(/(\d+)\s*[÷/]\s*(\d+)/);
+ if(attempt&&division){
+  const candidate=Number(attempt[1]);
+  const total=Number(division[1]),divisor=Number(division[2]);
+  if(divisor>0&&Number.isSafeInteger(candidate)&&
+     Number.isSafeInteger(total)&&Number.isSafeInteger(divisor)&&
+     Number.isSafeInteger(candidate*divisor)){
+   return candidate*divisor===total
+    ?"نعم، محاولتك صحيحة. نتحقق بضرب العدد اللي اخترته في المقسوم عليه؛ يرجع لنا العدد الأصلي."
+    :`محاولتك تحتاج تعديلًا. اضرب العدد اللي اخترته في ${divisor} وقارن الناتج بـ${total}. إذا ما تساووا، عدّل محاولتك وجرب مرة ثانية.`;
+  }
+ }
+
  const ctx=resolved+"\n"+message;
  if(mode==="VERIFY_STUDENT_WORK"&&/يعني\s+(?:أجمع|اجمع)\s*6\s+أربع\s+مرات/.test(message)&&/4\s*[×*]\s*6/.test(ctx))return"نعم، صحيح بالضبط. 4 × 6 يعني أربع مجموعات من 6، أي 6 + 6 + 6 + 6. لا نحسب الناتج الآن؛ المهم أنك فهمت معنى الضرب.";
  if(mode==="PRACTICE_REQUEST"&&/4\s*[×*]\s*6/.test(ctx))return"ممتاز. جرّب بنفسك: 3 × 5. مثّلها كمجموعات متساوية أو جمع متكرر، ولا تكتب الحل إلا بعد ما ترتب الفكرة.";
@@ -82,3 +158,9 @@ function safeTutorFallback(message:string,mode:string,expected?:string){if(/(?:�
 function buildSaudiDialectPolicy(dialect?:string){const d=(dialect??"saudi").toLowerCase();const base="تكلم بدارجية سعودية تعليمية طبيعية وخفيفة، مو بفصحى رسمية. لا تستخدم تعبيرات من لهجات عربية ثانية مثل: ما يعنيش، عايز، بدك، شو، إزاي، مش. استخدم تعبيرات طبيعية عند الحاجة مثل: مو، بس، خلنا، ليش، كذا، هذي، عشان، الحين، تقدر. لا تحشر كلمات عامية بلا داعي، وخلك واضح رياضيًا. إذا سؤال الطالب واضح، جاوبه مباشرة ولا تبدأ تلقائيًا بسؤال تشخيصي. تجنب الصيغ الرسمية الثقيلة مثل: يتعين، ينبغي، وعليه، لذا، بناءً على ذلك. خفف المدح والمقدمات.";if(d.includes("hijazi"))return base+" الأسلوب المطلوب حجازي سعودي خفيف وطبيعي؛ استخدم مثل: لسه، مرة، خلنا، إيش/ليش عند ملاءمتها، بدون مبالغة أو تمثيل للهجة.";if(d.includes("najdi"))return base+" الأسلوب المطلوب نجدي سعودي خفيف وطبيعي؛ استخدم مثل: وش، أبي، شف/شوف، الحين عند ملاءمتها، بدون مبالغة أو تصنع.";return base+" حافظ على سعودي عام مفهوم في مختلف مناطق المملكة."}
 
 function adaptFallbackDialect(text:string,dialect?:string){const d=(dialect??"saudi").toLowerCase();let x=text.replace(/دعنا/g,"خلنا").replace(/لا أستطيع/g,"ما أقدر").replace(/لا يمكننا/g,"ما نقدر").replace(/لماذا/g,"ليش").replace(/هذا/g,"هذي").replace(/لا أوافق/g,"مو صحيح").replace(/العبارة غير صحيحة/g,"الكلام هذا مو صحيح").replace(/الصياغة الصحيحة/g,"والصح").replace(/عايز|عايش/g,"تبغى").replace(/تانية/g,"ثانية").replace(/كده/g,"كذا").replace(/بدك/g,"تبغى").replace(/مخافش/g,"مو متأكد").replace(/ما يعنيش/g,"مو معناه").replace(/شو/g,"وش").replace(/إزاي/g,"كيف").replace(/توشف/g,"تشوف").replace(/(^|[^\p{L}])مش(?=$|[^\p{L}])/gu,"$1مو");if(d.includes("najdi"))x=x.replace(/ماذا/g,"وش").replace(/أريد/g,"أبي").replace(/تبغى/g,"تبي");if(d.includes("hijazi"))x=x.replace(/ما زال/g,"لسه");return x}
+
+function normalizeHintDigits(text:string){
+ return text
+  .replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660))
+  .replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0));
+}

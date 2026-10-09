@@ -1,3 +1,4 @@
+import { appendFileSync, mkdirSync } from "node:fs";
 export type GenerationInput = { system: string; user: string; context: string[]; history?:Array<{role:"user"|"assistant";content:string}> };
 export interface HessaModelProvider { readonly name: string; generate(input: GenerationInput): Promise<string>; }
 
@@ -34,6 +35,39 @@ export class OpenAICompatibleLocalProvider implements HessaModelProvider {
     if (!response.ok){const body=await response.text();throw new Error(`Local LLM failed: HTTP ${response.status} ${body.slice(0,500)}`);}
     const data = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const answer = data.choices?.[0]?.message?.content?.trim();
+
+    // HESSA_GENERATION_DIAGNOSTICS
+    try {
+      const details=data as typeof data & {
+        choices?:Array<{
+          message?:{content?:string};
+          finish_reason?:string;
+        }>;
+        usage?:{
+          prompt_tokens?:number;
+          completion_tokens?:number;
+          total_tokens?:number;
+        };
+      };
+      const folder=process.cwd()+"/artifacts";
+      mkdirSync(folder,{recursive:true});
+      appendFileSync(folder+"/generation-diagnostics.jsonl",
+        JSON.stringify({
+          time:new Date().toISOString(),
+          finishReason:details.choices?.[0]?.finish_reason??null,
+          usage:details.usage??null,
+          systemChars:input.system.length,
+          userChars:input.user.length,
+          historyTurns:input.history?.length??0,
+          answerChars:answer?.length??0,
+          answerWords:answer?.split(/\s+/).filter(Boolean).length??0,
+          unmatchedBold:(answer?.match(/\*\*/g)??[]).length%2!==0,
+          repairAttempt:input.system.includes("الرد السابق رُفض آليًا")
+        })+"\n","utf8");
+    } catch {
+      // تعذر تسجيل التشخيص لا يوقف إجابة المدرس.
+    }
+
     if (!answer) throw new Error("Local LLM returned an empty response");
     return answer;
   }

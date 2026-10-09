@@ -1,7 +1,73 @@
 import type{RetrievalDocument,StudentState}from"./types";
 export type ConceptResponse={answer:string;concept:string;confidence:number};
 export function teachKnownConcept(message:string,student:StudentState={},docs:RetrievalDocument[]=[]):ConceptResponse|null{
- const young=(student.age??99)<=10;
+
+ const young=(student.age??99)<10;
+ const normalized=message
+   .replace(/[\u064B-\u065F\u0670\u0640]/g,"")
+   .replace(/[أإآ]/g,"ا");
+
+
+ // الضرب في صفر: معنى مجموعات متساوية.
+ if(/(?:ليش|لماذا|ليه|اشرح|سبب)/.test(normalized)&&
+    /(?:ضرب|نضرب|اضرب|مضروب)/.test(normalized)&&
+    /(?:صفر|(?:^|\s)0(?:$|\s))/.test(normalized))
+  return{
+   concept:"zero-product-foundation",
+   confidence:.99,
+   answer:"الضرب في صفر يعني صفر مجموعات، فما عندنا عناصر نجمعها. مثلًا: لو في كل صندوق 4 مكعبات لكن ما عندنا أي صندوق، فعدد المكعبات صفر. عشان كذا 4 × 0 = 0، ونفس الفكرة لأي عدد."
+  };
+
+ // اختيار المحيط من مهمة تتعلق بالحواف.
+ if(/(?:حول|حواف|حدود)/.test(normalized)&&
+    /(?:شريط|سياج|سور|اطار)/.test(normalized)&&
+    /(?:احتاج|نحتاج|اقيس|احسب|محيط|مساح)/.test(normalized))
+  return{
+   concept:"perimeter-practical-choice",
+   confidence:.99,
+   answer:"تحتاج المحيط، لأن الشريط يمر حول حواف اللوحة. المحيط يقيس طول الحدود، أما المساحة فتقيس الجزء داخلها. إذا تبغى طول الشريط، نحتاج أطوال الحواف أو معلومات تسمح بحسابها."
+  };
+
+ // لا نفترض ارتفاعًا عندما تُذكر قاعدة المثلث فقط.
+ if(/مثلث/.test(normalized)&&/مساح/.test(normalized)&&
+    /(?:قاعدته|القاعدة|قاعد(?:ة|ه))\s*(?:=|تساوي|طولها)?\s*[0-9٠-٩]/.test(normalized)&&
+    !/(?:ارتفاع|مرتفع|قائم|متساوي|زاوي|ضلع|اضلاع|رؤوس|احداثيات|عمودي)/.test(normalized))
+  return{
+   concept:"triangle-missing-height",
+   confidence:.99,
+   answer:"معرفة القاعدة وحدها ما تكفي لتحديد مساحة المثلث. نحتاج الارتفاع العمودي على القاعدة أو معلومة أخرى تحدده. القانون الصحيح: المساحة = القاعدة × الارتفاع ÷ 2. مثلثات لها نفس القاعدة ممكن تختلف مساحاتها إذا اختلف ارتفاعها."
+  };
+
+ if(/(?:فرق|افرق|قارن)/.test(normalized)&&
+    /مساحة/.test(normalized)&&/محيط/.test(normalized))
+  return{
+   concept:"area-vs-perimeter",
+   confidence:.99,
+   answer:"المحيط يقيس طول الحدود حول الشكل، والمساحة تقيس الجزء اللي داخله. تخيل ملعبًا: طول السياج حوله يمثل المحيط، والعشب اللي يغطي أرضه يمثل المساحة. نقيس المحيط بالمتر، والمساحة بالمتر المربع."
+  };
+
+ if(/مساحة/.test(normalized)&&/مستطيل/.test(normalized)&&
+    /(?:طوله|عرضه)\s+فقط/.test(normalized)&&
+    /(?:هل|يمكن|اقدر|تحديد|حساب)/.test(normalized)&&
+    !/(?:مربع|نسبة|محيط|قطر|يساوي\s+(?:عرضه|طوله)|(?:عرضه|طوله)\s+(?:يساوي|نفس|مثل)|(?:العرض|الطول)\s+(?:يساوي|نفس|مثل))/.test(normalized))
+  return{
+   concept:"rectangle-missing-dimension",
+   confidence:.99,
+   answer:/طوله\s+فقط/.test(normalized)
+    ?"الطول وحده ما يكفي لتحديد المساحة؛ نحتاج العرض أو معلومة أخرى تحدده. مساحة المستطيل = الطول × العرض، ومستطيلات لها نفس الطول ممكن تختلف مساحاتها إذا اختلف عرضها."
+    :"العرض وحده ما يكفي لتحديد المساحة؛ نحتاج الطول أو معلومة أخرى تحدده. مساحة المستطيل = الطول × العرض، ومستطيلات لها نفس العرض ممكن تختلف مساحاتها إذا اختلف طولها."
+  };
+
+ if(/(?:اشرح|معنى|يعني|فهم)/.test(normalized)&&
+    /(?:^|[\s،؟])(?:النصف|نصف)(?=$|[\s،؟])/.test(normalized)&&
+    !/(?:ثلث|ربع|نصف\s+(?:القطر|قطر))/.test(normalized)&&
+    !/[0-9٠-٩]/.test(normalized))
+  return{
+   concept:"half-as-equal-parts",
+   confidence:.99,
+   answer:"النصف يعني جزءًا واحدًا من جزئين متساويين من نفس الشيء. تخيل ورقة تطويها بحيث ينطبق طرفها على الطرف الثاني؛ كل جزء من الجزئين يمثل نصف الورقة."
+  };
+
  const verbalFraction=parseArabicVerbalFraction(message);
  if(verbalFraction)return{concept:"verbal-fraction",confidence:.99,answer:young?`${verbalFraction.label} يعني نقسم الشيء ${verbalFraction.den} أجزاء قد بعض ونأخذ ${verbalFraction.num} منها. تخيّل شكلًا مقسمًا ${verbalFraction.den} أجزاء متساوية وظلّل ${verbalFraction.num}.`:`${verbalFraction.label} تعني ${verbalFraction.num} من ${verbalFraction.den} أجزاء متساوية من الكل، أي ${verbalFraction.num}/${verbalFraction.den}.`};
  if(/(?:ثلاثة|ثلاث|3)\s+(?:أرباع|ارباع)|(?:ثلاثة\s+من\s+أربعة)/.test(message))return{concept:"three-quarters",confidence:.99,answer:young?"ثلاثة أرباع يعني نقسم الشيء 4 قطع قد بعض ونأخذ 3 قطع. تخيّل دائرة مقسمة أربع قطع متساوية وظلّل ثلاث منها.":"ثلاثة أرباع تعني 3 من 4 أجزاء متساوية من الكل، أي 3/4."};
