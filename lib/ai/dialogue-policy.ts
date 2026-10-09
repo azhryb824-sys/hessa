@@ -3,7 +3,8 @@ export type DialogueMode="SOCRATIC_HINT"|"VERIFY_STUDENT_WORK"|"CONCEPT_EXPLANAT
 export type DialoguePlan={mode:DialogueMode;resolvedMessage:string;priorContext:string;shouldRevealAnswer:boolean;shouldCheckUnderstanding:boolean;instructions:string[]};
 export function planDialogue(message:string,history:ConversationTurn[]=[],student:StudentState={}):DialoguePlan{
  const prior=history.slice(-6);const lastAssistant=[...prior].reverse().find(x=>x.role==="assistant")?.content??"";const lastUser=[...prior].reverse().find(x=>x.role==="user")?.content??"";const anchorUser=[...prior].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??lastUser;
- const explicitNoReveal=isExplicitNoReveal(message);\n let mode:DialogueMode="DIRECT_SOLUTION";
+ const explicitNoReveal=isExplicitNoReveal(message);
+ let mode:DialogueMode="DIRECT_SOLUTION";
  if(explicitNoReveal||/ساعدني\s+أفهم/i.test(message))mode="SOCRATIC_HINT";
  else if(/(?:حلي|حسبت|إجابتي|اجابتي).*?(?:صح|صحيح)|صح[؟?]?$|(?:أول|اول|الخطوة|أبدأ|ابدأ).*?(?:أطرح|اطرح|أضيف|اضيف|أقسم|اقسم|أضرب|اضرب).*?[؟?]?$|يعني\s+(?:أجمع|اجمع|أطرح|اطرح|أضرب|اضرب|أقسم|اقسم).*?[؟?]?$/i.test(message))mode="VERIFY_STUDENT_WORK";
  else if(/(?:أعطني|اعطني|هات|عطني).*?(?:سؤال|مسألة).*?(?:جديد|أجرب|اجرب|بنفسي)|(?:سؤال|مسألة).*?(?:أجرب|اجرب).*?(?:بنفسي)?|اختبرني.*?(?:بسؤال|بمسألة).*?(?:مشابه|جديد)?/i.test(message))mode="PRACTICE_REQUEST";
