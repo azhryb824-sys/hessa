@@ -28,7 +28,8 @@ export class HessaAICore{
     verification=subject==="MATH"?verifyMathAnswer(plan.resolvedMessage,answer):{verified:documents.length>0,confidence:documents.length>0?.72:.3,method:documents.length>0?"retrieval-grounding":"unverified-generation",issues:documents.length>0?[]:["لا توجد مادة منهجية مسترجعة للتحقق من الإجابة."]};
   }
   const previousAssistant=[...(request.history??[])].reverse().find(x=>x.role==="assistant")?.content;const critique=critiqueTutorAnswer({message,answer,stage:pedagogy.stage,mode:plan.mode,verified:verification.verified,previousAssistant});if(!critique.pass&&critique.issues.includes("repeated-explanation")&&concept)answer=concept.answer+"\n\nخلّنا نغيّر طريقة التفكير بدل تكرار الخطوات السابقة.";
-  answer=adaptFallbackDialect(answer,request.student?.preferredDialect);\n  const visual=buildLearningVisual(message);
+  answer=adaptFallbackDialect(answer,request.student?.preferredDialect);
+  const visual=buildLearningVisual(message);
   return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:activeMath?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:critique.issues,visual}};
  }
 }
