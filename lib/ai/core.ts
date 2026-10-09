@@ -18,7 +18,7 @@ export class HessaAICore{
     verification={verified:true,confidence:.99,method:"concept-triangle-reteach-engine",issues:[]};
   }
   else if(deterministic&&(!plan.shouldRevealAnswer||plan.mode==="PRACTICE_REQUEST")){
-    answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:activeMath.expectedAnswer,issues:[]};
+    answer=buildContextAwareHint(message,plan.resolvedMessage,plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
   }else if(activeMath){
     answer=adaptDeterministicAnswer(message,activeMath.answer,plan.mode,plan.shouldCheckUnderstanding);verification=verifyMathAnswer(plan.resolvedMessage,activeMath.answer);
   }else{
