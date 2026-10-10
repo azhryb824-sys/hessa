@@ -5,7 +5,71 @@ const toAscii = (v: string) => v.replace(/[٠-٩]/g, d => String("٠١٢٣٤٥٦
 
 function format(n: number) { return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(8))); }
 
+
+function solveFractionDivision(message:string):SolvedMath|null {
+  const source=toAscii(message).replace(/−/g,"-");
+  const number="-?\\d+(?:\\.\\d+)?";
+  const pattern=new RegExp(
+    `(${number})\\s*(?:÷|\\/)\\s*(?:\\(\\s*(${number})\\s*\\/\\s*(${number})\\s*\\)|(${number})\\s*\\/\\s*(${number}))`
+  );
+  const match=pattern.exec(source);
+  if(!match)return null;
+
+  const before=source.slice(0,match.index).trimEnd();
+  const after=source.slice(match.index+match[0].length).trimStart();
+
+  // لا نأخذ جزءًا من عملية أطول أو معامل يحتوي كسرًا آخر.
+  if(/[0-9.+*/÷×−-]$/.test(before)||
+     /^[0-9.+*/÷×−-]/.test(after))return null;
+
+  const whole=Number(match[1]);
+  const numerator=Number(match[2]??match[4]);
+  const denominator=Number(match[3]??match[5]);
+
+  if(![whole,numerator,denominator].every(
+    value=>Number.isFinite(value)&&Math.abs(value)<=1000000
+  ))return null;
+
+  if(denominator===0){
+    return {
+      kind:"invalid-fraction-denominator",
+      expectedAnswer:"غير معرّف",
+      answer:"الكسر داخل المسألة غير معرّف لأن مقامه صفر. ما نقدر نحسب القسمة قبل تصحيح هذا الكسر."
+    };
+  }
+
+  if(numerator===0){
+    return {
+      kind:"division-by-zero",
+      expectedAnswer:"غير معرّفة",
+      answer:"الكسر اللي نقسم عليه يساوي صفر، والقسمة على صفر غير معرّفة."
+    };
+  }
+
+  const value=whole*denominator/numerator;
+  const result=format(value);
+  let explanation=
+    `القسمة على كسر تعني نضرب في مقلوبه: ${whole} ÷ (${numerator}/${denominator}) = ${whole} × (${denominator}/${numerator}) = ${result}.`;
+
+  if(whole>0&&numerator>0&&denominator>numerator){
+    explanation+=
+      ` القسمة هنا تسأل: كم جزءًا حجمه ${numerator}/${denominator} موجود في ${whole}؟ الجزء أصغر من الواحد، فعشان كذا عدد الأجزاء أكبر من ${whole}.`;
+  }
+
+  explanation+=
+    ` وللتأكد، نضرب الناتج في الكسر اللي قسمنا عليه: ${result} × (${numerator}/${denominator}) = ${format(whole)}.`;
+
+  return {
+    kind:"fraction-division",
+    expectedAnswer:result,
+    answer:explanation
+  };
+}
+
 export function solveDeterministicMath(message: string): SolvedMath | null {
+  const fractionDivision=solveFractionDivision(message);
+  if(fractionDivision)return fractionDivision;
+
   const text = toAscii(message).replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
 
   const percent = text.match(/(\d+(?:\.\d+)?)\s*%\s*(?:من|of)\s*(\d+(?:\.\d+)?)/i);
@@ -64,6 +128,45 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const groupsThenShare = text.match(/(?:في\s+)?(\d+)\s+صناديق[^\d]{0,30}(?:كل\s+صندوق|بكل\s+صندوق)[^\d]{0,10}(\d+)[^\d]{0,40}(?:بالتساوي|وزعت|وُزّعت)[^\d]{0,20}(\d+)\s+(?:طلاب|طالب)/i);
   if(groupsThenShare){const boxes=Number(groupsThenShare[1]),each=Number(groupsThenShare[2]),students=Number(groupsThenShare[3]),total=boxes*each,value=total/students;return{kind:"multiply-then-divide-word",expectedAnswer:format(value),answer:`أولًا نحسب عدد الأقلام كلها: ${boxes} × ${each} = ${format(total)}. ثم نوزعها بالتساوي على ${students}: ${format(total)} ÷ ${students} = ${format(value)}. إذن لكل طالب ${format(value)} قلمًا.`};}
 
+
+  const percentSequence=text.match(
+    /(?:سعره|سعرها|سعر|ثمنه|ثمن)\s*(\d+(?:\.\d+)?)\s*ريال[^.؟?\n]{0,30}(?:زاد|زادت|زيادة)\s*(\d+(?:\.\d+)?)\s*%\s*(?:و\s*)?(?:بعدين|ثم|بعدها)\s*(?:نقص|نقصت|انخفض|انخفضت|خصم)\s*(\d+(?:\.\d+)?)\s*%/
+  );
+  if(percentSequence){
+    const tail=text.slice(
+      (percentSequence.index??0)+percentSequence[0].length
+    );
+    // لا نختزل ثلاث تغييرات إلى تغييرين.
+    if(/(?:زاد|نقص|خصم|انخفض)[^\n]{0,20}\d+\s*%/.test(tail))
+      return null;
+
+    const base=Number(percentSequence[1]);
+    const increase=Number(percentSequence[2]);
+    const decrease=Number(percentSequence[3]);
+    if(base<0||base>1000000||increase>100||decrease>100)
+      return null;
+
+    const raised=base*(1+increase/100);
+    const discount=raised*decrease/100;
+    const final=raised-discount;
+
+    return {
+      kind:"successive-percent-change",
+      expectedAnswer:format(final),
+      answer:
+        `${/(?:يرجع|يعود)[^؟?]{0,30}(?:صح|صحيح)/.test(text)?(final===base?"نعم، يرجع للسعر الأصلي. ":"لا، ما يرجع للسعر الأصلي. "):""}السعر النهائي ${format(final)} ريال، ${final===base?"وهو يساوي":"وهو يختلف عن"} السعر الأصلي ${format(base)} ريال. `+
+        `بعد الزيادة: ${base} × (1 + ${increase}/100) = ${format(raised)}. `+
+        `التخفيض نحسبه من السعر الجديد: ${decrease}% من ${format(raised)} = ${format(discount)}. `+
+        `بعد التخفيض: ${format(raised)} - ${format(discount)} = ${format(final)}. `+
+        `الزيادة والتخفيض هنا لهما أساسان مختلفان، فعشان كذا ما نلغي النسبتين مباشرة.`
+    };
+  }
+
+  // عند وجود زيادة وتخفيض، لا نؤكد نتيجة مرحلة واحدة.
+  if(/(?:زاد|زادت|زيادة)/.test(text)&&
+     /(?:نقص|نقصت|خصم|انخفض)/.test(text)&&
+     (text.match(/%/g)?.length??0)>=2)return null;
+
   const percentIncrease = text.match(/(?:سعر|ثمن)[^\d]{0,10}(\d+(?:\.\d+)?)\s+[^%]{0,25}(?:زاد|زيادة)\s+(\d+(?:\.\d+)?)%/i);
   if(percentIncrease){const base=Number(percentIncrease[1]),p=Number(percentIncrease[2]),inc=base*p/100,value=base+inc;return{kind:"percent-increase",expectedAnswer:format(value),answer:`نحسب مقدار الزيادة أولًا: ${p}% من ${base} = ${format(inc)}. ثم نضيف الزيادة إلى السعر الأصلي: ${base} + ${format(inc)} = ${format(value)}. إذن السعر الجديد ${format(value)}.`};}
 
@@ -81,9 +184,19 @@ export function solveDeterministicMath(message: string): SolvedMath | null {
   const falseArithmeticPremise = text.match(/(?:لماذا|ليش|اشرح)[^\n]{0,40}(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)\s*(?:يساوي|=)\s*(-?\d+(?:\.\d+)?)/i);
   if(falseArithmeticPremise){const a=Number(falseArithmeticPremise[1]),op=falseArithmeticPremise[2],b=Number(falseArithmeticPremise[3]),claimed=Number(falseArithmeticPremise[4]);if(!(op==="/"&&b===0)){const actual=op==="+"?a+b:op==="-"?a-b:op==="*"?a*b:a/b;if(actual!==claimed)return{kind:"false-premise",expectedAnswer:format(actual),answer:`الفرضية غير صحيحة، لأننا نتحقق من العملية نفسها بدل افتراض النتيجة. ${a} ${op==="*"?"×":op==="/"?"÷":op} ${b} = ${format(actual)}، وليس ${claimed}. لذلك لا يمكن بناء شرح صحيح على النتيجة ${claimed}؛ أول خطوة هي تصحيح الفرضية إلى ${format(actual)}.`};}}
   const chain = text.match(/^\s*(-?\d+(?:\.\d+)?)\s*([+\-*/÷×])\s*(-?\d+(?:\.\d+)?)\s*([+\-*/÷×])\s*(-?\d+(?:\.\d+)?)/);
+  if(chain&&/^[\s]*[+\-*/]/.test(
+    text.slice((chain.index??0)+chain[0].length)
+  ))return null;
   if(chain){const a=Number(chain[1]),op1=chain[2],b=Number(chain[3]),op2=chain[4],c=Number(chain[5]);const norm=(o:string)=>o==="÷"?"/":o==="×"?"*":o;const x=norm(op1),y=norm(op2);const apply=(m:number,o:string,n:number)=>o==="+"?m+n:o==="-"?m-n:o==="*"?m*n:m/n;let value:number;if((y==="*"||y==="/")&&(x==="+"||x==="-"))value=apply(a,x,apply(b,y,c));else value=apply(apply(a,x,b),y,c);return{kind:"operation-chain",expectedAnswer:format(value),answer:`نراعي ترتيب العمليات، ومع الضرب والقسمة في المستوى نفسه نعمل من اليسار إلى اليمين. الناتج = ${format(value)}.`};}
 
   const arithmetic = text.match(/(-?\d+(?:\.\d+)?)\s*([+\-*/])\s*(-?\d+(?:\.\d+)?)/);
+  if(arithmetic){
+    const start=arithmetic.index??0;
+    const before=text.slice(0,start).trimEnd();
+    const after=text.slice(start+arithmetic[0].length).trimStart();
+    if(/[0-9.+*/-]$/.test(before)||/^[0-9.+*/-]/.test(after))
+      return null;
+  }
   if (arithmetic) { const left=Number(arithmetic[1]),op=arithmetic[2],right=Number(arithmetic[3]); if(op==="/"&&right===0)return null; const value=op==="+"?left+right:op==="-"?left-right:op==="*"?left*right:left/right; const symbol=op==="*"?"×":op==="/"?"÷":op; return {kind:"arithmetic",expectedAnswer:format(value),answer:`نحلها خطوة خطوة: ${left} ${symbol} ${right} = ${format(value)}. إذن الناتج هو ${format(value)}.`}; }
 
   return null;
@@ -94,6 +207,10 @@ export function verifyMathAnswer(message:string,candidate:string):VerificationRe
   if(!solved)return{verified:false,confidence:.35,method:"no-deterministic-check-available",issues:["المسألة خارج نطاق المحقق الحتمي الحالي؛ يجب عدم اعتبار الإجابة مؤكدة قبل التحقق بأداة رياضية مناسبة."]};
   const normalized=toAscii(candidate).replace(/\s/g,"");
   const expected=solved.expectedAnswer.replace(/\s/g,"");
-  const verified=normalized.includes(expected);
+  const escaped=expected.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const numeric=/^-?\d+(?:\.\d+)?$/.test(expected);
+  const verified=numeric
+    ?new RegExp(`(^|[^\\d./-])${escaped}(?!\\d|[./]\\d)`).test(normalized)
+    :normalized.includes(expected);
   return{verified,confidence:verified?.99:.95,method:`deterministic-${solved.kind}-verifier`,expectedAnswer:solved.expectedAnswer,issues:verified?[]:["الإجابة المولدة لا تحتوي النتيجة التي أثبتها المحقق الحتمي."]};
 }

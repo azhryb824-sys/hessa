@@ -18,7 +18,11 @@ if(words.some((word,index)=>
 
 if(/(?:الخطا\s+فيك|انت\s+غبي|انت\s+ما\s+تفهم)/.test(normalized))
  issues.push("STUDENT_BLAME");
-if(/(?:اذا|لان|عرفنا|بحيث|ان)\s*$/.test(normalized))
+if(/(?:اذا|لان|عرفنا|بحيث|ان|من|الى|على)\s*$/.test(normalized))
  issues.push("POSSIBLE_INCOMPLETE_ENDING");
+
+if(/خلنا نمشي خطوة خطوة، ونتاكد من كل خطوة قبل الانتقال للي بعدها/.test(normalized)||
+   /خلنا نغير التمثيل بدل تكرار الشرح السابق.*مثل المسالة برسم/.test(normalized))
+  issues.push("GENERIC_NONANSWER");
 return{ok:issues.length===0,issues}
 }

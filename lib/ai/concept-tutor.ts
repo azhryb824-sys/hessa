@@ -1,8 +1,11 @@
+import {teachFoundationalConcept} from "./foundational-concepts";
 import type{RetrievalDocument,StudentState}from"./types";
 export type ConceptResponse={answer:string;concept:string;confidence:number};
 export function teachKnownConcept(message:string,student:StudentState={},docs:RetrievalDocument[]=[]):ConceptResponse|null{
 
- const young=(student.age??99)<10;
+ const foundation=teachFoundationalConcept(message);
+  if(foundation)return foundation;
+  const young=(student.age??99)<10;
  const normalized=message
    .replace(/[\u064B-\u065F\u0670\u0640]/g,"")
    .replace(/[أإآ]/g,"ا");

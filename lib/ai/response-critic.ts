@@ -6,14 +6,14 @@ export function critiqueTutorAnswer(input:{message:string;answer:string;stage:Le
  if(input.mode==="SOCRATIC_HINT"&&/الناتج (?:هو|=)|إذن.*\d/.test(a))issues.push("hint-reveals-answer");
  if(input.mode==="RETEACH"&&input.previousAssistant&&similarity(a,input.previousAssistant)>.72)issues.push("repeated-explanation");
  if((input.stage==="EARLY_CHILD"||input.stage==="PRIMARY")&&a.length>650)issues.push("too-long-for-stage");
- if(input.mode==="VERIFY_STUDENT_WORK"&&input.studentWorkAvailable!==false&&!/(غير صحيح|صحيح|خطأ|إجابتك)/.test(a))issues.push("no-explicit-judgment");
+ if(input.mode==="VERIFY_STUDENT_WORK"&&input.studentWorkAvailable!==false&&!/(غير صحيح|صحيح|خطأ|إجابتك)|^(?:نعم|لا)[،,:\s]/.test(a))issues.push("no-explicit-judgment");
 
  const normalized=a
   .replace(/[\u064B-\u065F\u0670\u0640]/g,"")
   .replace(/[أإآ]/g,"ا");
 
  const explanationSignals=
-  /(?:لان|السبب|يعني|تخيل|مثال)/.test(normalized)||
+  /(?:لان|السبب|يعني|تعني|تخيل|مثال|عشان كذا)/.test(normalized)||
   /(?:نفس|متساوي).*?(?:يختلف|تختلف|اختلف|يتغير|تتغير)/.test(normalized)||
   (/يمثل/.test(normalized)&&/(?:حول|داخل|يغطي|سياج|عشب)/.test(normalized));
 
