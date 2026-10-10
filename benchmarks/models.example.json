@@ -1,0 +1,17 @@
+[
+  {
+    "id": "Qwen/Qwen3.5-397B-A17B",
+    "endpoint": "http://127.0.0.1:8000/v1",
+    "apiKey": "local"
+  },
+  {
+    "id": "openai/gpt-oss-120b",
+    "endpoint": "http://127.0.0.1:8001/v1",
+    "apiKey": "local"
+  },
+  {
+    "id": "deepseek-ai/DeepSeek-R1",
+    "endpoint": "http://127.0.0.1:8002/v1",
+    "apiKey": "local"
+  }
+]

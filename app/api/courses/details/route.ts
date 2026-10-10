@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 
 export async function GET(request: Request) {
 try {
@@ -16,11 +17,7 @@ if (!subject) {
   );
 }
 
-const student = await prisma.user.findUnique({
-  where: {
-    email: "student@hessa.local",
-  },
-});
+const student = await requireStudent();
 
 if (!student) {
   return NextResponse.json(

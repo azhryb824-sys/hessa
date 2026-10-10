@@ -1,0 +1,20 @@
+{
+  "name": "hessa-tutor-v1",
+  "objective": "Improve Arabic tutoring interaction, misconception handling, hints, re-teaching and age-appropriate pedagogy without replacing deterministic verification.",
+  "base_model": "Qwen/Qwen3-4B-Instruct-2507",
+  "seed": 20261006,
+  "required_gates": {
+    "dataset_clean_examples_min": 5000,
+    "test_examples_min": 400,
+    "benchmark_prompt_leakage": 0,
+    "specialized_math_accuracy_min": 0.95,
+    "professional_tutor_ux_min": 0.90,
+    "long_dialogue_pass_rate_min": 0.90
+  },
+  "evaluation_order": [
+    "base-model baseline",
+    "QLoRA adapter",
+    "Hessa Core + adapter + verifier + critic"
+  ],
+  "promotion_rule": "Do not promote an adapter if any scientific regression gate drops versus the base Hessa Core, even when conversational metrics improve."
+}

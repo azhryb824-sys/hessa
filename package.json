@@ -6,7 +6,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint app lib prisma --max-warnings=0",
+    "release:scan": "npx tsx scripts/release-identity-scan.ts",
+    "release:math": "npx tsx scripts/benchmark-math.ts",
+    "release:mastery": "npx tsx scripts/test-mastery-engine.ts",
+    "science:math": "npx tsx scripts/benchmark-scientific-math.ts",
+    "eval:tutor": "npx tsx scripts/evaluate-tutor-responses.ts",
+    "postinstall": "prisma generate",
+    "prebuild": "prisma generate",
+    "eval:generative-adversarial": "tsx scripts/benchmark-generative-adversarial.ts",
+    "eval:saudi-dialect": "tsx scripts/benchmark-saudi-dialect.ts",
+    "eval:saudi-fidelity": "tsx scripts/benchmark-saudi-dialect-fidelity.ts"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.10.0",
@@ -25,6 +35,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.7",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "tsx": "^4.20.6"
   }
 }

@@ -1,0 +1,34 @@
+[
+  {
+    "authority": "وزارة التعليم السعودية",
+    "platform": "مدرستي",
+    "stage": "SECONDARY_COMMON_YEAR",
+    "title": "الرياضيات 1",
+    "status": "official-metadata-only",
+    "source": "madrasati-books"
+  },
+  {
+    "authority": "وزارة التعليم السعودية",
+    "platform": "مدرستي",
+    "stage": "SECONDARY_COMMON_YEAR",
+    "title": "الأحياء 1",
+    "status": "official-metadata-only",
+    "source": "madrasati-books"
+  },
+  {
+    "authority": "وزارة التعليم السعودية",
+    "platform": "مدرستي",
+    "stage": "SECONDARY_COMMON_YEAR",
+    "title": "MEGA GOAL 1",
+    "status": "official-metadata-only",
+    "source": "madrasati-books"
+  },
+  {
+    "authority": "وزارة التعليم السعودية",
+    "platform": "مدرستي",
+    "stage": "SECONDARY_COMMON_YEAR",
+    "title": "الكفايات اللغوية 1",
+    "status": "official-metadata-only",
+    "source": "madrasati-books"
+  }
+]

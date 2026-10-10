@@ -1,0 +1,4 @@
+import type { RetrievalDocument } from "./types";
+export type CurriculumChunk = RetrievalDocument & { country:"SA"; curriculum:"MOE"; stage:string; grade:string; semester?:string; unit?:string; lesson?:string; version:string; reviewed:boolean; };
+export function validateCurriculumChunk(chunk:CurriculumChunk){const issues:string[]=[];if(!chunk.reviewed)issues.push("المحتوى غير معتمد تربويًا.");if(!chunk.grade)issues.push("الصف غير محدد.");if(!chunk.version)issues.push("نسخة المنهج غير محددة.");if(chunk.content.trim().length<20)issues.push("المحتوى قصير جدًا للفهرسة.");return{valid:issues.length===0,issues};}
+export function filterCurriculum(chunks:CurriculumChunk[],subject?:string,grade?:string){return chunks.filter(c=>(!subject||c.subject===subject)&&(!grade||c.grade===grade)&&c.reviewed);}

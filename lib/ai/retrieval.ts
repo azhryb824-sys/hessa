@@ -1,0 +1,3 @@
+import type { RetrievalDocument } from "./types";
+function normalize(value:string){return value.toLowerCase().replace(/[إأآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/[^\p{L}\p{N}\s]/gu," ").replace(/\s+/g," ").trim();}
+export function retrieveRelevant(query:string,documents:RetrievalDocument[],limit=4){const terms=new Set(normalize(query).split(" ").filter(x=>x.length>1));return documents.map(document=>{const text=normalize(`${document.title} ${document.content}`);let score=0;for(const term of terms)if(text.includes(term))score++;return{document,score};}).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,limit).map(x=>x.document);}

@@ -1,57 +1,11 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 
 export async function GET() {
 try {
-const student = await prisma.user.findUnique({
-where: {
-email: "student@hessa.local",
-},
-include: {
-studentProfile: true,
-
-    enrollments: {
-      include: {
-        course: {
-          include: {
-            lessons: true,
-          },
-        },
-      },
-    },
-
-    attempts: {
-      include: {
-        assessment: true,
-      },
-      orderBy: {
-        completedAt: "desc",
-      },
-    },
-
-    lessonProgress: {
-      where: {
-        completed: true,
-      },
-      include: {
-        lesson: {
-          include: {
-            course: {
-              select: {
-                id: true,
-                title: true,
-                subject: true,
-              },
-            },
-          },
-        },
-      },
-      orderBy: {
-        completedAt: "desc",
-      },
-    },
-  },
-});
+const current = await requireStudent();
+const student = await prisma.user.findUnique({where:{id:current.id},include:{studentProfile:true,enrollments:{include:{course:{include:{lessons:true}}}},attempts:true,lessonProgress:{where:{completed:true},include:{lesson:{include:{course:true}}},orderBy:{completedAt:"desc"}}}});
 
 if (!student) {
   return NextResponse.json(

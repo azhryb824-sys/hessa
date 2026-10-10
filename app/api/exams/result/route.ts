@@ -1,8 +1,10 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextRequest, NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 
 export async function GET(request: NextRequest) {
   try {
+    const student = await requireStudent();
     const attemptId = request.nextUrl.searchParams.get("id");
 
     if (!attemptId) {
@@ -18,6 +20,7 @@ export async function GET(request: NextRequest) {
     const attempt = await prisma.assessmentAttempt.findUnique({
       where: {
         id: attemptId,
+        userId: student.id,
       },
       include: {
         assessment: {

@@ -1,0 +1,254 @@
+{
+  "id": "hessa-math-primary",
+  "title": "منهج حصة الأصلي للرياضيات - المرحلة الابتدائية",
+  "subject": "الرياضيات",
+  "stage": "PRIMARY",
+  "version": "1.0.0",
+  "license": "HESSA_ORIGINAL",
+  "skills": [
+    {
+      "id": "g1-count-20",
+      "grade": 1,
+      "domain": "الأعداد",
+      "unit": "الأعداد حتى 20",
+      "title": "العد وقراءة الأعداد حتى 20",
+      "outcomes": [
+        "يعد أشياء محسوسة حتى 20",
+        "يربط الرمز العددي بالكمية",
+        "يقارن عددين ضمن 20"
+      ],
+      "prerequisites": [],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g1-add-10",
+      "grade": 1,
+      "domain": "العمليات",
+      "unit": "الجمع",
+      "title": "الجمع ضمن 10",
+      "outcomes": [
+        "يمثل الجمع بضم مجموعتين",
+        "يحسب نواتج جمع ضمن 10",
+        "يحل مسألة لفظية من خطوة واحدة"
+      ],
+      "prerequisites": [
+        "g1-count-20"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g1-sub-10",
+      "grade": 1,
+      "domain": "العمليات",
+      "unit": "الطرح",
+      "title": "الطرح ضمن 10",
+      "outcomes": [
+        "يمثل الطرح بإزالة عناصر",
+        "يحسب نواتج طرح ضمن 10",
+        "يفسر معنى الباقي"
+      ],
+      "prerequisites": [
+        "g1-count-20"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g2-place-100",
+      "grade": 2,
+      "domain": "الأعداد",
+      "unit": "القيمة المنزلية",
+      "title": "العشرات والآحاد حتى 100",
+      "outcomes": [
+        "يفكك العدد إلى عشرات وآحاد",
+        "يقارن أعدادًا حتى 100",
+        "يرتب ثلاثة أعداد"
+      ],
+      "prerequisites": [
+        "g1-count-20"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g2-add-sub-100",
+      "grade": 2,
+      "domain": "العمليات",
+      "unit": "الجمع والطرح",
+      "title": "الجمع والطرح حتى 100",
+      "outcomes": [
+        "يجمع عددين ضمن 100",
+        "يطرح ضمن 100",
+        "يختار العملية المناسبة لمسألة لفظية"
+      ],
+      "prerequisites": [
+        "g1-add-10",
+        "g1-sub-10",
+        "g2-place-100"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g3-multiply",
+      "grade": 3,
+      "domain": "العمليات",
+      "unit": "الضرب",
+      "title": "مفهوم الضرب وحقائقه الأساسية",
+      "outcomes": [
+        "يفسر الضرب كمجموعات متساوية",
+        "يمثل الضرب بالمصفوفات",
+        "يستخدم حقائق الضرب الأساسية"
+      ],
+      "prerequisites": [
+        "g2-add-sub-100"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g3-division",
+      "grade": 3,
+      "domain": "العمليات",
+      "unit": "القسمة",
+      "title": "مفهوم القسمة وعلاقتها بالضرب",
+      "outcomes": [
+        "يفسر القسمة كتوزيع متساو",
+        "يربط القسمة بالضرب",
+        "يحل مسائل قسمة بسيطة"
+      ],
+      "prerequisites": [
+        "g3-multiply"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g3-fractions",
+      "grade": 3,
+      "domain": "الأعداد",
+      "unit": "الكسور",
+      "title": "الكسور كأجزاء متساوية",
+      "outcomes": [
+        "يميز البسط والمقام",
+        "يمثل النصف والثلث والربع",
+        "يقارن كسورًا بسيطة ذات مقام واحد"
+      ],
+      "prerequisites": [
+        "g3-division"
+      ],
+      "masteryThreshold": 0.82
+    },
+    {
+      "id": "g4-multi-digit",
+      "grade": 4,
+      "domain": "العمليات",
+      "unit": "عمليات متعددة الأرقام",
+      "title": "الجمع والطرح والضرب والقسمة متعددة الأرقام",
+      "outcomes": [
+        "ينفذ العمليات بدقة",
+        "يقدر معقولية الناتج",
+        "يحل مسائل متعددة الخطوات"
+      ],
+      "prerequisites": [
+        "g3-multiply",
+        "g3-division"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g4-geometry",
+      "grade": 4,
+      "domain": "الهندسة",
+      "unit": "الأشكال والقياس",
+      "title": "المحيط والمساحة",
+      "outcomes": [
+        "يحسب محيط مستطيل ومربع",
+        "يحسب مساحة مستطيل ومربع",
+        "يميز بين وحدات الطول والمساحة"
+      ],
+      "prerequisites": [
+        "g3-multiply"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g5-fractions-ops",
+      "grade": 5,
+      "domain": "الأعداد",
+      "unit": "عمليات الكسور",
+      "title": "جمع وطرح الكسور",
+      "outcomes": [
+        "يولد كسورًا مكافئة",
+        "يجمع ويطرح كسورًا مناسبة للمستوى",
+        "يتحقق من معقولية الناتج"
+      ],
+      "prerequisites": [
+        "g3-fractions",
+        "g4-multi-digit"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g5-decimals",
+      "grade": 5,
+      "domain": "الأعداد",
+      "unit": "الكسور العشرية",
+      "title": "الأعداد والعمليات العشرية",
+      "outcomes": [
+        "يقرأ الكسور العشرية",
+        "يقارنها",
+        "يجري عمليات أساسية مناسبة للمستوى"
+      ],
+      "prerequisites": [
+        "g4-multi-digit"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g6-ratios",
+      "grade": 6,
+      "domain": "النسب",
+      "unit": "النسب والمعدلات",
+      "title": "النسب والتناسب والنسبة المئوية",
+      "outcomes": [
+        "يفسر النسبة",
+        "يبسط نسبة",
+        "يحسب نسبة مئوية بسيطة"
+      ],
+      "prerequisites": [
+        "g5-fractions-ops",
+        "g5-decimals"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g6-algebra",
+      "grade": 6,
+      "domain": "الجبر",
+      "unit": "التعبيرات والمعادلات",
+      "title": "المتغيرات والمعادلات البسيطة",
+      "outcomes": [
+        "يمثل مجهولًا بمتغير",
+        "يحل معادلة خطية بسيطة",
+        "يتحقق بالتعويض"
+      ],
+      "prerequisites": [
+        "g4-multi-digit"
+      ],
+      "masteryThreshold": 0.85
+    },
+    {
+      "id": "g6-geometry",
+      "grade": 6,
+      "domain": "الهندسة",
+      "unit": "المساحة",
+      "title": "مساحة المثلث والأشكال المركبة الأساسية",
+      "outcomes": [
+        "يحسب مساحة مثلث",
+        "يختار القانون المناسب",
+        "يحل مسألة هندسية تطبيقية"
+      ],
+      "prerequisites": [
+        "g4-geometry",
+        "g5-decimals"
+      ],
+      "masteryThreshold": 0.85
+    }
+  ]
+}

@@ -1,0 +1,38 @@
+import {evaluateSaudiLinguisticQuality} from "./saudi-linguistic-quality";
+export type Dialect="saudi"|"hijazi"|"najdi";
+export type QualityCase={dialect:Dialect;prompt:string;age:number;required?:RegExp;hintOnly?:boolean};
+const regional:Record<Dialect,string[]>={saudi:["مو","بس","خلنا","خلينا","ليش","عشان","تقدر","نقدر","هذي","كذا","الحين","وش"],hijazi:["لسه","مرة","إيش","ايش","ليش","خلينا","عشان","مو","تقدر"],najdi:["وش","أبي","ابي","تبي","شف","شوف","الحين","مو","عشان","خلنا"]};
+const generic=["عندك","يعني","أكيد","ببساطة"];
+const badPatterns=[/بس\s+بس(?:\s|[،.!؟])/u,/شوف\s+ليه\s+السؤال/u,/أبي\s+تفهم/u,/أنا\s+بيعي/u,/أنت\s+عمري/u,/بس\s+بسيط/u,/نحلها\s+بسّط/u,/ما\s+بس\s+أقول/u,/موترك/u,/نموي/u,/الافتراض\s+الخاطئ\s*،/u,/ما\s+كان\s+الشيء\s+صحيح/u];
+const incomplete=/(?:[،؛:]|(?:\b(?:إذا|لأن|ثم|لكن|مثلاً|يعني)\b))\s*$/u;
+const words=(s:string)=>s.normalize("NFKC").replace(/[ًٌٍَُِّْـ]/g,"").match(/[\p{L}]+/gu)??[];
+const has=(s:string,term:string)=>new RegExp("(^|[^\\p{L}])"+term+"(?=$|[^\\p{L}])","u").test(s);
+const clamp=(x:number)=>Math.max(0,Math.min(1,x));
+export function evaluateSaudiFidelityV5(answer:string,c:QualityCase){
+ const issues:string[]=[];const ling=evaluateSaudiLinguisticQuality(answer);
+ issues.push(...ling.issues);
+ const region=regional[c.dialect].filter(t=>has(answer,t)).length;
+ const genericCount=generic.filter(t=>has(answer,t)).length;
+ const authenticity=clamp(.35+.16*Math.min(region,3)+.04*Math.min(genericCount,2));
+ const malformed=badPatterns.filter(p=>p.test(answer));
+ if(malformed.length)issues.push(...malformed.map(p=>"UNNATURAL:"+p.source));
+ const naturalness=clamp(1-.32*malformed.length-.24*ling.issues.length);
+ const w=words(answer).length;
+ const vague=/خلّ?نا نمشي خطوة خطوة، ونتأكد من كل خطوة قبل الانتقال للي بعدها/u.test(answer);
+ const relevant=c.required?c.required.test(answer):true;
+ if(!relevant)issues.push("MISSING_REQUIRED_CONCEPT");
+ if(vague)issues.push("GENERIC_FALLBACK");
+ if(incomplete.test(answer.trim()))issues.push("INCOMPLETE_ENDING");
+ const adequacy=clamp((relevant?1:.2)-(vague?.65:0)-(incomplete.test(answer.trim())?.25:0));
+ const ageFit=clamp(c.age<=10&&w>110?.55:c.age<=10&&w>80?.8:1);
+ if(ageFit<1)issues.push("AGE_VERBOSITY");
+ const contamination=ling.issues.some(x=>x.startsWith("CROSS_DIALECT"))?0:1;
+ const repetition=ling.issues.some(x=>x.startsWith("REPETITION"))?0:1;
+ const dimensions={authenticity,naturalness,adequacy,ageFit,contamination,repetition};
+ let score=.2*authenticity+.25*naturalness+.3*adequacy+.1*ageFit+.1*contamination+.05*repetition;
+ if(malformed.length||ling.issues.length)score=Math.min(score,.65);
+ if(!relevant||vague)score=Math.min(score,.55);
+ if(incomplete.test(answer.trim()))score=Math.min(score,.8);
+ score=+clamp(score).toFixed(3);
+ return{score,pass:score>=.85&&issues.length===0,issues,dimensions};
+}

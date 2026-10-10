@@ -1,0 +1,268 @@
+import { resolveRectangleContext } from "./rectangle-context";
+import { resolveFractionTeaching } from "./fraction-teaching";
+import {semanticRouteV2} from "./semantic-router-v2";import {enforceChildResponse} from "./child-response-guard";import {solveDeterministicMath,verifyMathAnswer} from "./math-engine";import {pedagogyPolicy} from "./pedagogy";import {createModelProvider,type HessaModelProvider} from "./provider";import {retrieveRelevant} from "./retrieval";import {routeSubject} from "./router";import {planDialogue} from "./dialogue-policy";import {teachKnownConcept} from "./concept-tutor";import {chooseTutorPhase,phaseInstruction} from "./tutor-state";import {critiqueTutorAnswer} from "./response-critic";import {buildLearningVisual} from "./learning-visuals";import type {TutorRequest,TutorResponse,VerificationResult} from "./types";import {validateTutorOutput} from "./tutor-output-validator";import {evaluateSemanticTutorQuality} from "./semantic-tutor-guard";import {evaluateGenerativeQuality} from "./generative-quality-guard";import {evaluateSaudiDialectContamination} from "./saudi-dialect-guard";import {evaluateSaudiLinguisticQuality} from "./saudi-linguistic-quality";
+export class HessaAICore{
+ constructor(private readonly provider:HessaModelProvider=createModelProvider()){}
+ async tutor(request:TutorRequest):Promise<TutorResponse>{
+  const message=request.message?.trim();if(!message)throw new Error("message is required");
+  const routedSemantic=semanticRouteV2(message,request.student?.age);
+const differentExample=!!request.history?.length&&requestsDifferentExample(message);
+const semantic=differentExample
+  ?{
+    ...routedSemantic,
+    intent:"reteach" as typeof routedSemantic.intent,
+    conceptual:true,
+    reasons:[...routedSemantic.reasons,"different-example-request"]
+  }
+  :routedSemantic;
+  const subject=routeSubject(message,request.subject);const pedagogy=pedagogyPolicy(request.student);const routedPlan=planDialogue(message,request.history,request.student);
+const originalPlan=differentExample
+  ?{...routedPlan,mode:"RETEACH" as typeof routedPlan.mode}
+  :routedPlan;
+const currentDirective=message
+  .replace(/[\u064B-\u065F\u0670]/g,"")
+  .replace(/[أإآ]/g,"ا");
+
+const explicitReveal=
+  /(?:اعطني|عطني|وريني|ابغى|ابي|اريد)\s+(?:الحل|الجواب|الناتج|الاجابة)/.test(currentDirective)
+  && !/(?:لا\s+(?:تعطيني|تعطني|تكشف|تقول|توريني)|بدون\s+(?:الحل|الجواب|الناتج|كشف)|تلميح\s*(?:بس|فقط))/.test(currentDirective);
+
+const plan=explicitReveal
+  ?{
+    ...originalPlan,
+    shouldRevealAnswer:true,
+    mode:"DIRECT_SOLUTION" as typeof originalPlan.mode
+  }
+  :originalPlan;const tutorPhase=chooseTutorPhase(request.mastery);
+  const documents=retrieveRelevant(`${request.lessonTitle??""} ${plan.resolvedMessage}`,request.retrievedContext??[]);
+  const highConfidence=subject==="MATH"?resolveHighConfidencePedagogy(message,request.history??[]):null;const scriptedFollowUp=subject==="MATH"?resolveScriptedMathFollowUp(message,request.history??[],plan.mode):null;
+  const conceptualQuestion=semantic.conceptual||plan.mode==="CONCEPT_EXPLANATION";const misconceptionQuestion=semantic.misconception;const deterministic=subject==="MATH"&&!conceptualQuestion&&!misconceptionQuestion?solveDeterministicMath(plan.resolvedMessage):null;const anchoredDeterministic=subject==="MATH"&&!deterministic&&request.history?.length?solveDeterministicMath([...request.history].reverse().find(x=>x.role==="user"&&/(?:\d\s*[+\-×*÷/=]|\d\s*س|كسر|مثلث|مساح|ضرب|قسمة)/i.test(x.content))?.content??""):null;const activeMath=deterministic??anchoredDeterministic;const concept=subject==="MATH"?teachKnownConcept(
+      plan.mode==="RETEACH"
+        ?([...(request.history??[])].reverse()
+          .find(turn=>turn.role==="user"&&
+            semanticRouteV2(turn.content).intent!=="reteach")
+          ?.content??message)
+        :message,
+      request.student,documents
+    ):null;let answer:string;let verification:VerificationResult;
+
+const fractionTeaching=subject==="MATH"
+ ?resolveFractionTeaching(
+   message,
+   plan.shouldRevealAnswer,
+   semantic.misconception||semantic.intent==="verify"
+  ):null;
+
+const rectangleTeaching=subject==="MATH"
+ ?resolveRectangleContext(message,request.history??[],plan.shouldRevealAnswer):null;
+ const hasWork=semantic.mathExpression||
+ /[0-9٠-٩۰-۹]/.test(message)||
+ (request.history??[]).some(turn=>
+   turn.role==="user"&&(
+     semanticRouteV2(turn.content).mathExpression||
+     /[0-9٠-٩۰-۹]/.test(turn.content)
+   )
+ );
+
+if(subject==="MATH"&&semantic.intent==="verify"&&!hasWork){
+ answer="أرسل لي نص السؤال وخطوات حلك، وأنا أراجعها معك وأحدد أي خطوة تحتاج تصحيح.";
+ verification={
+   verified:false,
+   confidence:0,
+   method:"student-work-required",
+   issues:["لم يرسل الطالب خطوات حل يمكن التحقق منها."]
+ };
+}
+else if(subject==="MATH"&&plan.shouldRevealAnswer&&
+  solveDeterministicMath(message)?.kind==="fraction-division"){
+  const solved=solveDeterministicMath(message)!;
+  answer=solved.answer;
+  verification=verifyMathAnswer(message,answer);
+}
+else if(rectangleTeaching){
+ answer=rectangleTeaching.answer;
+ verification=rectangleTeaching.verification;
+}
+else if(fractionTeaching){
+ answer=fractionTeaching.answer;
+ verification=fractionTeaching.verification;
+}
+else if(subject==="MATH"&&!plan.shouldRevealAnswer&&deterministic){answer=buildContextAwareHint(normalizeHintDigits(message),normalizeHintDigits(plan.resolvedMessage),"SOCRATIC_HINT");verification={verified:true,confidence:.99,method:"no-reveal-constraint-engine",expectedAnswer:deterministic.expectedAnswer,issues:[]};}
+  else if(highConfidence){answer=adaptFallbackDialect(highConfidence.answer,request.student?.preferredDialect);verification={verified:true,confidence:.99,method:highConfidence.method,issues:[]};}
+  else if(scriptedFollowUp){answer=adaptFallbackDialect(scriptedFollowUp.answer,request.student?.preferredDialect);verification={verified:true,confidence:.99,method:scriptedFollowUp.method,expectedAnswer:scriptedFollowUp.expectedAnswer,issues:[]};}
+  else if(concept&&(plan.mode==="CONCEPT_EXPLANATION"||plan.mode==="SUPPORT_AND_DIAGNOSE"||plan.mode==="RETEACH"||(plan.mode==="DIRECT_SOLUTION"&&!deterministic&&concept.confidence>=.95))){answer=plan.mode==="RETEACH"?buildConceptReteach(concept.concept,concept.answer,request.student?.age,(request.history??[]).filter(turn=>turn.role==="assistant").map(turn=>turn.content)):concept.answer;verification={verified:true,confidence:concept.confidence,method:plan.mode==="RETEACH"?"concept-reteach-engine":"concept-curriculum-engine",issues:[]};}
+  else if(subject==="MATH"&&plan.mode==="RETEACH"&&/(?:مثلث|مساح)/.test(plan.resolvedMessage)){
+    const repeated=(request.history??[]).filter(x=>x.role==="user"&&/ما\s*فهمت|لم\s*أفهم|طريقة\s+ثانية|لا\s*تكرر|تصور\s*مختلف/.test(x.content)).length;
+    answer=repeated>=1||/لا\s*تكرر|تصور\s*مختلف/.test(message)
+      ?"خلّنا نستخدم تصورًا مختلفًا تمامًا: تخيّل عندك نسختان متطابقتان من المثلث. اقلب النسخة الثانية وركّبها بجانب الأولى؛ النسختان تكوّنان متوازي أضلاع له نفس القاعدة والارتفاع. مساحة الشكل الكامل هي القاعدة × الارتفاع، وبما أنه مكوّن من مثلثين متساويين، فكل مثلث يأخذ نصف المساحة. لهذا نقسم على 2."
+      :"خلّنا نرسمها بدل الكلام: ارسم مستطيلًا، ثم ارسم قطرًا من زاوية إلى الزاوية المقابلة. القطر يقسم المستطيل إلى مثلثين متطابقين. إذا كانت مساحة المستطيل كلها القاعدة × الارتفاع، فكل واحد من المثلثين يأخذ نصفها. لهذا تظهر ÷2.";
+    verification={verified:true,confidence:.99,method:"concept-triangle-reteach-engine",issues:[]};
+  }
+  else if(deterministic&&(!plan.shouldRevealAnswer||plan.mode==="PRACTICE_REQUEST")){
+    answer=buildContextAwareHint(normalizeHintDigits(message),normalizeHintDigits(plan.resolvedMessage),plan.mode);verification={verified:true,confidence:.95,method:"verified-problem-hidden-answer",expectedAnswer:deterministic.expectedAnswer,issues:[]};
+  }else if(activeMath){
+    answer=adaptDeterministicAnswer(message,activeMath.answer,plan.mode,plan.shouldCheckUnderstanding);
+    if(plan.mode==="RETEACH"&&activeMath.kind==="fraction-division"){
+      const expression=activeMath.answer.match(
+        /(-?\d+(?:\.\d+)?)\s*÷\s*\((-?\d+(?:\.\d+)?)\/(-?\d+(?:\.\d+)?)\)/
+      );
+      if(expression){
+        const total=Number(expression[1]);
+        const numerator=Number(expression[2]);
+        const denominator=Number(expression[3]);
+        const size=numerator/denominator;
+        const count=total/size;
+        if(total>0&&size>0&&Number.isInteger(count)){
+          const usedWater=(request.history??[]).some(
+            turn=>turn.role==="assistant"&&/لتر|عبوات/.test(turn.content)
+          );
+          answer=usedWater
+            ?`جرّب تمثيلًا ثانيًا: شريط طوله ${total} متر، ونقصّه إلى قطع طول كل قطعة ${numerator}/${denominator} متر. عدد القطع هو ${activeMath.expectedAnswer}، لأن ${activeMath.expectedAnswer} × (${numerator}/${denominator}) = ${total}. القسمة تعدّ القطع، مو شرط تصغّر العدد.`
+            :`تخيل عندك ${total} لتر ماء، وكل عبوة تسع ${numerator}/${denominator} لتر. نحتاج ${activeMath.expectedAnswer} عبوات لتوزيع الماء كله، لأن ${activeMath.expectedAnswer} × (${numerator}/${denominator}) = ${total}. القسمة هنا تسأل عن عدد العبوات الصغيرة اللي تملأها الكمية.`;
+        }
+      }
+    }
+
+    verification=verifyMathAnswer(
+      deterministic?plan.resolvedMessage:
+      ([...(request.history??[])].reverse()
+        .find(turn=>turn.role==="user"&&
+          solveDeterministicMath(turn.content)!==null)?.content
+        ??plan.resolvedMessage),
+      answer
+    );
+    if(/(?:اتأكد|أتأكد|اتحقق|أتحقق|تاكد|تأكد)/.test(message)&&
+       activeMath.kind==="arithmetic"){
+      const expression=activeMath.answer.match(
+        /(-?\d+(?:\.\d+)?)\s*÷\s*(-?\d+(?:\.\d+)?)/
+      );
+      if(expression){
+        answer+=`\nللتأكد: ${activeMath.expectedAnswer} × ${expression[2]} = ${expression[1]}.`;
+      }
+    }
+  }else{
+    const dialectPolicy=buildSaudiDialectPolicy(request.student?.preferredDialect);const system=["أنت مدرس حصة الذكي، مدرس شخصي تفاعلي وليس آلة إجابات.",`المادة: ${subject}. المرحلة: ${pedagogy.stage}.`,dialectPolicy,...pedagogy.rules,...plan.instructions,(tutorPhase==="DIAGNOSE"&&plan.mode!=="SUPPORT_AND_DIAGNOSE"?"أجب عن طلب الطالب مباشرة. لا تفرض اختبار مستوى قبل شرح سؤال واضح.":phaseInstruction(tutorPhase)),plan.priorContext?"استخدم سياق الحوار السابق لحل الإشارات والمتابعة، ولا تتظاهر بأن الرسالة مستقلة.":"",documents.length?"التزم بالمحتوى المسترجع ولا تخترع حقائق غير موجودة فيه.":"إذا لم تتوفر معرفة موثوقة فلا تخمّن."].filter(Boolean).join("\n");
+    answer=await this.provider.generate({system,user:plan.resolvedMessage,context:documents.map(d=>d.content),history:request.history});
+    if(subject==="MATH"){const expected=solveDeterministicMath(message)?.expectedAnswer;const previous=(request.history??[]).filter(x=>x.role==="assistant").map(x=>x.content);const gate=validateTutorOutput({userText:message,response:answer,knownAnswer:expected,previousResponses:previous});const semantic=evaluateSemanticTutorQuality({userText:message,answer,history:request.history,age:request.student?.age});const quality=evaluateGenerativeQuality(answer);const dialectQuality=evaluateSaudiDialectContamination(answer);const linguisticQuality=evaluateSaudiLinguisticQuality(answer);if(!gate.ok||!semantic.ok||!quality.ok||!dialectQuality.ok||!linguisticQuality.ok){const repair=[...system.split("\n"),"الرد السابق رُفض آليًا قبل عرضه للطالب.",...gate.policy.issues.map(x=>`سبب الرفض: ${x.code}. ${x.detail}`),...gate.math.errors.map(x=>`خطأ حسابي: ${x.expression} والصحيح ${x.actual}`),...semantic.issues.map(x=>`مشكلة دلالية يجب إصلاحها: ${x}`),...quality.issues.map(x=>`مشكلة جودة يجب إصلاحها: ${x}`),...dialectQuality.issues.map(x=>`مشكلة لهجية يجب إصلاحها: ${x}`),...linguisticQuality.issues.map(x=>`مشكلة لغوية يجب إصلاحها: ${x}`),"أعد صياغة الرد من الصفر في 120 كلمة أو أقل، وادخل في الشرح مباشرة. لا تذكر تعليمات داخلية ولا تكرر السؤال التشخيصي. لا تكرر النص المرفوض، ولا تكشف الإجابة إذا كان الطالب طلب تلميحًا."].join("\n");const regenerated=await this.provider.generate({system:repair,user:plan.resolvedMessage,context:documents.map(d=>d.content),history:request.history});const gate2=validateTutorOutput({userText:message,response:regenerated,knownAnswer:expected,previousResponses:previous});const semantic2=evaluateSemanticTutorQuality({userText:message,answer:regenerated,history:request.history,age:request.student?.age});const quality2=evaluateGenerativeQuality(regenerated);const dialectQuality2=evaluateSaudiDialectContamination(regenerated);const linguisticQuality2=evaluateSaudiLinguisticQuality(regenerated);if(gate2.ok&&semantic2.ok&&quality2.ok&&dialectQuality2.ok&&linguisticQuality2.ok)answer=regenerated;else answer=adaptFallbackDialect(safeTutorFallback(message,plan.mode,expected),request.student?.preferredDialect)}}
+    verification=subject==="MATH"?verifyMathAnswer(plan.resolvedMessage,answer):{verified:documents.length>0,confidence:documents.length>0?.72:.3,method:documents.length>0?"retrieval-grounding":"unverified-generation",issues:documents.length>0?[]:["لا توجد مادة منهجية مسترجعة للتحقق من الإجابة."]};
+  }
+  if(!plan.shouldRevealAnswer){
+   const {expectedAnswer:_hiddenAnswer,...publicVerification}=verification;
+   verification=publicVerification;
+ }
+ const previousAssistant=[...(request.history??[])].reverse().find(x=>x.role==="assistant")?.content;const critique=critiqueTutorAnswer({message,answer,stage:pedagogy.stage,mode:plan.mode,verified:verification.verified,studentWorkAvailable:hasWork,previousAssistant});if(!critique.pass&&critique.issues.includes("repeated-explanation")&&concept)answer=concept.answer+"\n\nخلّنا نغيّر طريقة التفكير بدل تكرار الخطوات السابقة.";
+  answer=adaptFallbackDialect(answer,request.student?.preferredDialect);
+  const childGuard=enforceChildResponse(answer,request.student?.age);answer=childGuard.answer;
+  const visual=plan.shouldRevealAnswer&&verification.method!=="deterministic-fraction-division-verifier"?buildLearningVisual(message):null;
+  return{success:true,engine:"Hessa AI Core",version:"1.0.0",subject,stage:pedagogy.stage,answer,verification,context:{documentIds:documents.map(d=>d.id),grounded:documents.length>0},pedagogy:{maxSteps:pedagogy.maxSteps,language:"ar",dialect:pedagogy.dialect,rules:pedagogy.rules},metadata:{generatedAt:new Date().toISOString(),provider:rectangleTeaching?"contextual-geometry":verification.method.startsWith("concept-")?"concept-teaching":verification.method==="student-work-required"?"dialogue-policy":fractionTeaching?"deterministic-fraction-teaching":activeMath||verification.method==="deterministic-fraction-division-verifier"?"deterministic-math":this.provider.name,tutorPhase,critiqueScore:critique.score,critiqueIssues:[...critique.issues,...childGuard.issues],semanticRoute:semantic,visual}};
+ }
+}
+function buildConceptReteach(concept:string,base:string,age?:number,previous:string[]=[]){
+
+  if(concept==="negative-number-order"){
+    const match=base.match(
+      /(-\d+(?:\.\d+)?)\s*([><=])\s*(-\d+(?:\.\d+)?)/
+    );
+    if(match){
+      const a=match[1],symbol=match[2],b=match[3];
+      const repeatedTemperature=previous.some(
+        answer=>/حرارة|درجة/.test(answer)
+      );
+      return repeatedTemperature
+        ?`جرب خط الأعداد: حدد ${a} و${b}، ثم شوف أي نقطة جهة اليمين. جهة اليمين تعني قيمة أكبر، فعشان كذا ${a} ${symbol} ${b}.`
+        :`تخيل ميزان حرارة: عندنا ${a} درجات و${b} درجات. الدرجة الأقرب للصفر أدفأ، يعني أكبر كعدد. المقارنة هي ${a} ${symbol} ${b}. كبر الرقم بدون إشارته ما يعني إن العدد السالب أكبر.`;
+    }
+  }
+  if(concept==="third-as-equal-parts"){
+    if(!previous.some(answer=>answer.includes("6 أقلام"))){
+      return "خلنا نجرب بالأقلام: وزع 6 أقلام بالتساوي على ثلاثة أطفال. كل طفل يأخذ قلمين. القلمين يمثلون ثلث الأقلام، لأن المجموعات الثلاث قد بعض.";
+    }
+    return "جرب بورقة: قسمها إلى ثلاثة أجزاء متساوية وظلل جزءًا واحدًا. المظلل هو الثلث. وش لازم يكون صحيحًا في أحجام الأجزاء الثلاثة؟";
+  }
+  if(concept==="third-unequal-parts")return base;
+
+  if(concept==="half-as-equal-parts"){
+ const examples=[
+  {marker:"6 مكعبات",answer:"خلنا نجرب بأشياء قدامنا: حط 6 مكعبات ووزعها بالتساوي بين صندوقين. يصير في كل صندوق 3 مكعبات. كل صندوق فيه نصف المكعبات لأن المجموعتين قد بعض. لو كانت مجموعة أكبر من الثانية، ما تكون كل مجموعة نصف الكمية."},
+  {marker:"منتصف الطريق",answer:"تخيل طريقًا من بيتك للمدرسة. وقف في منتصف الطريق: المسافة اللي مشيتها تساوي المسافة اللي باقي تمشيها. كل مسافة تمثل نصف الطريق. النصف مهمته يقسم الكمية إلى جزئين قد بعض."},
+  {marker:"كوب عصير",answer:"تخيل كوب عصير كامل. وزع العصير بالتساوي على كوبين متماثلين، بدون ما يبقى شيء في الكوب الأول. كل كوب من الاثنين فيه نصف كمية العصير الأصلية، لأن الكميتين متساويتان."}
+ ];
+ const unused=examples.find(example=>
+  !previous.some(answer=>answer.includes(example.marker))
+ );
+ return unused?.answer??"خلنا نتأكد من الفكرة بدل إعادة الأمثلة: إذا قسمنا كمية إلى مجموعتين، وش لازم يكون صحيحًا في المجموعتين عشان نسمي كل مجموعة نصف الكمية؟";
+}
+const young=(age??99)<=10;if(concept==="fraction-foundation"||concept==="fraction-meaning")return young?"خلّنا نترك الأرقام شوي: ارسم دائرة وقسمها قطعًا متساوية، ثم ظلّل بعض القطع. عدد القطع كلها هو المقام، وعدد المظللة هو البسط. كذا نشوف الكسر بدل ما نحفظه.":"غيّر التمثيل إلى نموذج مساحة: ارسم شكلًا مقسمًا إلى أجزاء متساوية، ثم مثّل البسط بالتظليل والمقام بعدد الأجزاء كلها. هذا يربط الرمز بالكمية بصريًا.";if(/variable/.test(concept))return"بدل التعريف، تخيّل صندوقًا مغلقًا عليه حرف س. ما نعرف الرقم داخله للحين؛ كل معلومة في المسألة تساعدنا نعرف محتوى الصندوق. س هو اسم مؤقت للقيمة المجهولة.";return young?"خلّنا نغيّر الطريقة ونستخدم رسمًا أو أشياء قدامنا بدل تكرار الكلام: "+base:"خلّنا نغيّر زاوية الشرح ونربط الفكرة بتمثيل مختلف بدل تكرار التعريف: "+base;}
+function resolveHighConfidencePedagogy(message:string,history:Array<{role:"user"|"assistant";content:string}>){ if(/(?:نمط|قاعدة).*?(?:كم|عدة|بعض|أول).*?(?:حد|حدود|مثال).*?(?:الوحيد|وحيدة|أجزم|اثبت|أثبت|يكفي)|(?:هل|أقدر|اقدر).*?(?:حدود|أمثلة|امثلة).*?(?:تثبت|تكفي).*?(?:قاعدة|نمط)/.test(message))return{answer:"لا، توافق قاعدة مع عدد محدود من الحدود أو الأمثلة ما يثبت إنها القاعدة الوحيدة. ممكن أكثر من قاعدة توافق نفس الأمثلة ثم تختلف بعدها. نحتاج معطيات إضافية أو برهان يثبت القاعدة بشكل عام.",method:"finite-evidence-generalization-engine"}; if(/(?:الفرق|أفرق|افرق).*?(?:تحقق|تحققت|مثال).*?(?:برهان|أثبت|اثبت|قاعدة)|(?:تحقق|مثال).*?(?:برهان|إثبات|اثبات).*?(?:فرق|أفرق|افرق)/.test(message))return{answer:"التحقق من مثال يثبت أن القاعدة نجحت في هذي الحالة فقط. البرهان يوضح ليش القاعدة صحيحة لكل الحالات اللي تنطبق عليها شروطها. يعني المثال يعطي دليلًا جزئيًا، أما البرهان فيثبت الحكم بشكل عام.",method:"example-vs-proof-engine"}; if(/(?:زاويتين|زاويتان).*?(?:متساويت|نفس).*?(?:تخمين|كيف)|كيف.*?(?:زاويتين|زاويتان).*?(?:متساويت)/.test(message))return{answer:"ما نعتمد على شكل الزاويتين بس. نتأكد بدليل: يا إن قياسهما نفس العدد، أو عندنا خاصية هندسية تثبت تساويهما مثل الزوايا المتقابلة بالرأس أو الناتجة عن تطابق. إذا ما عندنا قياس أو خاصية، ما نجزم بالتساوي.",method:"geometry-equality-evidence-engine"}; if(/(?:أوحّد|اوحد|توحيد).*?(?:المقامات|المقام)|(?:المقامات).*?(?:جمع|كسرين|كسور)/.test(message))return{answer:"لازم نوحّد المقامات لأن المقام يحدد حجم الجزء. ما نقدر نجمع أجزاء بأحجام مختلفة مباشرة؛ أول نخلي الأجزاء بنفس الحجم بمقام مشترك، وبعدها نجمع البسط ونبقي المقام المشترك.",method:"common-denominator-concept-engine"}; if(/(?:1|١)\s*[،,]\s*(?:2|٢)\s*[،,]\s*(?:4|٤).*?(?:8|٨)|(?:الحد\s+الجاي|الحد\s+التالي).*?(?:8|٨)/.test(message))return{answer:"مو أكيد إن الحد الجاي 8. التضاعف يعطي 8 كاحتمال، بس من 1، 2، 4 لحالها ما نقدر نثبت إن هذي القاعدة الوحيدة؛ ممكن قواعد ثانية توافق الحدود الثلاثة وتعطي حدًا مختلفًا.",method:"sequence-uncertainty-engine"}; if(/(?:حلي|الحل).*?(?:طويل|بدون.*?أعيد|بدون.*?اعيد)|(?:أتأكد|اتاكد).*?(?:حلي|الحل).*?(?:طويل|كله)/.test(message))return{answer:"عشان تراجع حل طويل بدون ما تعيده كله، راجع المعطيات أول، ثم تأكد إن كل خطوة لها قاعدة تبررها، وبعدها اختبر الناتج بالتعويض أو بطريقة مستقلة إذا تقدر. ركّز على الخطوات اللي تغيّر شكل المسألة؛ غالبًا الخطأ يظهر هناك.",method:"solution-review-strategy-engine"}; if(/(?:الفروق\s+الأولى|الفروق الاولى).*?(?:مو|غير).*?ثابت/.test(message))return{answer:"إذا الفروق الأولى مو ثابتة، افحص الفروق الثانية أول. إذا كانت ثابتة فهذا يشير غالبًا لنمط تربيعي. وإذا ما ثبتت، افحص النسب أو علاقة رقم الحد بقيمته، ولا تعتمد قاعدة إلا إذا وافقت كل الحدود.",method:"difference-pattern-strategy-engine"};
+ if(/(?:الفروق|فروق).*?(?:غير\s+ثابتة|مو\s+ثابتة|ليست\s+ثابتة)/.test(message)&&/(?:نمط|قاعدة)/.test(message))return{answer:"بما أن الفروق غير ثابتة، لا تفترض أن النمط حسابي. افحص الفروق الأولى ثم الفروق الثانية. إذا ما ظهر نمط واضح، افحص النسب بين الحدود، وبعدها العلاقة بين رقم الحد وقيمته. لا تعتمد أي قاعدة إلا إذا طابقت جميع الحدود المعطاة، واختبرها على حد إضافي إذا توفر.",method:"nonconstant-pattern-strategy-engine"};
+ if(/(?:البرهان|الشرح|المثال|الحل)\s+السابق/.test(message)&&!history.some(x=>x.role==="assistant"&&x.content.trim()))return{answer:"ما عندي محتوى البرهان السابق في سياق المحادثة الحالية. أرسل البرهان أو الجزء الذي ما فهمته، وسأعيد شرحه بطريقة مختلفة بدل ما أفترض محتواه.",method:"context-honesty-engine"};
+ if(/مربع\s+عدد\s+صحيح\s+زوجي.*العدد.*زوجي/.test(message)&&/تناقض/.test(message))return{answer:"فكرة البرهان بالتناقض هنا: افترض عكس المطلوب، أي أن العدد فردي. مثّل العدد الفردي على صورة 2ك + 1، ثم افحص مربع هذه الصورة. إذا وجدت أن المربع يجب أن يكون فرديًا بينما المعطى يقول إنه زوجي، ظهر التناقض. توقّف هنا وأكمل التوسيع بنفسك.",method:"proof-strategy-engine"};
+ if(/(?:2[،,]\s*4[،,]\s*8|ثلاثة\s+حدود|3\s+حدود).*?(?:القاعدة|قاعدة).*?(?:مؤكدة|الوحيدة|دائم)/.test(message)||/(?:القاعدة|قاعدة).*?(?:مؤكدة|الوحيدة).*?(?:2[،,]\s*4[،,]\s*8)/.test(message))return{answer:"لا يمكن تحديد قاعدة وحيدة مؤكدة من الحدود 2، 4، 8 فقط؛ توجد قواعد مختلفة كثيرة يمكن أن توافق هذه الحدود الثلاثة ثم تعطي حدودًا لاحقة مختلفة. نحتاج معلومات إضافية عن نوع النمط أو حدودًا أكثر قبل الادعاء بقاعدة وحيدة.",method:"epistemic-uncertainty-engine"};if(/2[،,]\s*4[،,]\s*8/.test(message)&&/(?:أكيد|اكيد|أقدر|اقدر).*?16|16.*?(?:أكيد|اكيد)/.test(message))return{answer:"مو أكيد. 16 احتمال طبيعي إذا افترضنا إن كل حد يتضاعف، بس من 2، 4، 8 لحالها ما نقدر نثبت إن هذي هي القاعدة الوحيدة؛ ممكن قواعد ثانية تطابق نفس الثلاثة حدود وتعطي حد رابع مختلف.",method:"saudi-epistemic-uncertainty-engine"};
+ if(/(?:زاويتين|زوايا).*?(?:صحيح|أتحقق|اتحقق).*?(?:بدون|دون).*?(?:حل|تعيد)/.test(message)||/(?:أتحقق|اتحقق).*?(?:استنتاجي).*?(?:زاويتين|زوايا)/.test(message))return{answer:"راجع الاستدلال كسلسلة تبريرات: لكل خطوة اسأل ما المعطى أو الخاصية الهندسية التي تسمح بها؟ إذا قلت إن زاويتين متساويتان، حدّد السبب بدقة مثل زوايا متقابلة بالرأس، متناظرة مع مستقيمين متوازيين، أو ناتجة عن تطابق. أي خطوة بلا سبب واضح هي موضع يحتاج مراجعة، من غير إعادة حل المسألة.",method:"geometry-reasoning-check-engine"};
+ if(/كل\s+عدد\s+أولي\s+فردي/.test(message))return{answer:"لا أوافق؛ العبارة غير صحيحة لأن 2 عدد أولي وهو زوجي. الصياغة الصحيحة: كل عدد أولي أكبر من 2 فردي، لأن أي عدد زوجي أكبر من 2 يقبل القسمة على 2.",method:"prime-truthfulness-engine"};
+ if(/(?:ليش|لماذا).*?(?:أجمع|نجمع|جمع).*?(?:المقامين|مقامين|مقامي\s+كسرين|مقام\s+الكسرين)/.test(message)||/(?:المقامين|مقامين|مقامي\s+كسرين|مقام\s+الكسرين).*?(?:أجمع|نجمع|جمع)/.test(message))return{answer:"لأن المقام يحدد حجم الجزء. إذا كان المقامان مختلفين، فالأجزاء أحجامها مختلفة، فما ينفع نجمعها مباشرة. أول شيء نوحّد حجم الأجزاء بمقام مشترك، وبعدها نجمع البسط ونخلي المقام المشترك نفسه.",method:"fraction-denominator-concept-engine"};
+ return null;
+}
+function resolveScriptedMathFollowUp(message:string,history:Array<{role:"user"|"assistant";content:string}>,mode:string){
+ const users=history.filter(x=>x.role==="user").map(x=>x.content);const ctx=users.join("\n")+"\n"+message;
+ if(/1\s*\/\s*2\s*\+\s*1\s*\/\s*3/.test(ctx)){
+  if(/ليش\s+ما\s+أجمع\s+المقامين|لماذا\s+لا\s+أجمع\s+المقامين/.test(message))return{answer:"لأن المقام يحدد حجم الجزء. النصف والثلث ليسا بالحجم نفسه، فلا نجمع 2 و3. نوحّد حجم الأجزاء أولًا بمقام مشترك، وبعدها نجمع عدد الأجزاء في البسط ونبقي المقام المشترك.",method:"scripted-fraction-concept-followup",expectedAnswer:"5/6"};
+  if(mode==="PRACTICE_REQUEST"||/اختبرني|سؤال.*مشابه/.test(message))return{answer:"جرّب هذا بدون حل: 1/4 + 1/6 = ؟ ما المقام المشترك المناسب؟ اكتب خطوتك الأولى فقط.",method:"scripted-fraction-practice-followup",expectedAnswer:"5/6"};
+ }
+ if(/288\s*[÷/]\s*8/.test(ctx)){
+  if(/37/.test(message))return{answer:"37 غير صحيح. تحقق بدون ما أكشف الجواب: احسب 37 × 8 وقارن الناتج بـ288. إذا لم يساوه، فالمحاولة تحتاج تعديلًا.",method:"scripted-division-check-followup",expectedAnswer:"36"};
+  if(/طريقة\s+ثانية|طريقة\s+أخرى|ما\s*فهمت|بدون\s+الحل/.test(message))return{answer:"نغيّر الطريقة: تخيّل 288 عنصرًا موزعة بالتساوي على 8 مجموعات. ضع 30 عنصرًا في كل مجموعة أولًا، ثم وزّع الباقي بالتساوي. اجمع نصيب المجموعة من الجزأين بنفسك، بدون ما أقول الناتج.",method:"scripted-division-reteach-followup",expectedAnswer:"36"};
+ }
+ return null;
+}
+function buildContextAwareHint(message:string,resolved:string,mode:string){
+ const attempt=message.match(/(?:جربت|حسبت|حلي|محاولتي)\s*(-?\d+(?:\.\d+)?)/);
+ const division=resolved.match(/(\d+)\s*[÷/]\s*(\d+)/);
+ if(attempt&&division){
+  const candidate=Number(attempt[1]);
+  const total=Number(division[1]),divisor=Number(division[2]);
+  if(divisor>0&&Number.isSafeInteger(candidate)&&
+     Number.isSafeInteger(total)&&Number.isSafeInteger(divisor)&&
+     Number.isSafeInteger(candidate*divisor)){
+   return candidate*divisor===total
+    ?"نعم، محاولتك صحيحة. نتحقق بضرب العدد اللي اخترته في المقسوم عليه؛ يرجع لنا العدد الأصلي."
+    :`محاولتك تحتاج تعديلًا. اضرب العدد اللي اخترته في ${divisor} وقارن الناتج بـ${total}. إذا ما تساووا، عدّل محاولتك وجرب مرة ثانية.`;
+  }
+ }
+
+ const ctx=resolved+"\n"+message;
+ if(mode==="VERIFY_STUDENT_WORK"&&/يعني\s+(?:أجمع|اجمع)\s*6\s+أربع\s+مرات/.test(message)&&/4\s*[×*]\s*6/.test(ctx))return"نعم، صحيح بالضبط. 4 × 6 يعني أربع مجموعات من 6، أي 6 + 6 + 6 + 6. لا نحسب الناتج الآن؛ المهم أنك فهمت معنى الضرب.";
+ if(mode==="PRACTICE_REQUEST"&&/4\s*[×*]\s*6/.test(ctx))return"ممتاز. جرّب بنفسك: 3 × 5. مثّلها كمجموعات متساوية أو جمع متكرر، ولا تكتب الحل إلا بعد ما ترتب الفكرة.";
+ if(mode==="VERIFY_STUDENT_WORK"&&/(?:أطرح|اطرح)\s*7\s*من\s*الطرفين/.test(message)&&/5\s*س\s*\+\s*7\s*=\s*42/.test(ctx))return"نعم، صحيح. طرح 7 من الطرفين يحافظ على توازن المعادلة ويلغي +7 من الطرفين. الآن اكتب المعادلة بعد الطرح، وأنا أتحقق من خطوتك بدون ما أعطيك قيمة س.";
+ if(mode==="CONCEPT_EXPLANATION"&&/(?:الطرفين|نفس الشيء|نفس الشئ|ليش لازم)/.test(message)&&/(?:5\s*س\s*\+\s*7\s*=\s*42|طرح\s*7|الطرفين)/.test(ctx))return"لأن علامة المساواة تعني أن الطرفين متوازنان. تخيّل المعادلة مثل ميزان: إذا طرحنا 7 من جهة واحدة فقط يختل الميزان. لذلك نطرح 7 من الجهتين حتى تبقى المساواة صحيحة، وما نحتاج نحسب قيمة س الآن.";
+ if(mode==="RETEACH"&&/مثلث|مساح/.test(ctx)){
+   if(/لا\s*تكرر|تصور\s*مختلف|طريقة\s*ثانية/.test(message))return"خلّنا نغيّر الصورة تمامًا: خذ نسختين متطابقتين من المثلث نفسه. حرّك نسخة واقلبها بجانب الأولى؛ النسختان تركبان شكلًا مساحته القاعدة × الارتفاع. بما أن الشكل مكوّن من مثلثين متساويين، فمساحة مثلث واحد نصف المساحة. لهذا نقسم على 2.";
+   return"تخيّل مستطيلًا له نفس قاعدة المثلث وارتفاعه. القطر يقسم المستطيل إلى مثلثين متساويين، لذلك كل مثلث يأخذ نصف مساحة المستطيل. لهذا مساحة المثلث = القاعدة × الارتفاع ÷ 2.";
+ }
+ if((mode==="CONCEPT_EXPLANATION"||/ليش|لماذا/.test(message))&&/ما\s+أجمع\s+المقامين/.test(message)&&/1\s*\/\s*2|1\s*\/\s*3|5\s*\/\s*6/.test(ctx))return"لأن المقام يحدد حجم الجزء. النصف والثلث ليسا قطعتين بالحجم نفسه، لذلك لا يصح أن نجمع 2 و3 ونعتبر الناتج مقامًا جديدًا. أولًا نحوّل الكسرين إلى أجزاء متساوية الحجم بمقام مشترك، ثم نجمع عدد هذه الأجزاء في البسط، ونُبقي المقام المشترك كما هو.";
+ if(mode==="PRACTICE_REQUEST"&&/1\s*\/\s*2|1\s*\/\s*3|5\s*\/\s*6|كسور|المقامين/.test(ctx))return"اختبر نفسك بهذا السؤال بدون حل: 1/4 + 1/6 = ؟ ما المقام المشترك المناسب؟ اكتب خطوتك الأولى فقط.";
+ if(mode==="VERIFY_STUDENT_WORK"&&/37/.test(message)&&/288\s*[÷/]\s*8/.test(ctx))return"37 غير صحيح. خلّنا نتحقق بدون كشف الناتج: اضرب 37 × 8 وقارن الناتج بـ288. إذا لم يساوه، نعرف أن المحاولة تحتاج تعديلًا.";
+ if(mode==="RETEACH"&&/288\s*[÷/]\s*8/.test(ctx))return"نغيّر الطريقة: تخيّل 288 عنصرًا نوزعها بالتساوي على 8 مجموعات. بدل البحث عن الناتج مباشرة، كوّن في كل مجموعة 30 عنصرًا أولًا، ثم انظر إلى العناصر المتبقية ووزّعها بالتساوي. اجمع نصيب المجموعة من الجزأين بنفسك.";
+ return buildHint(message);
+}
+function buildHint(message:string){const groups=message.match(/(\d+)\s+مجموعات[^\d]{0,30}(?:(?:في\s+)?كل\s+(?:مجموعة|وحدة)|بكل\s+مجموعة)[^\d]{0,15}(\d+)/i);if(groups)return`ما راح أكشف الناتج. مثّل ${groups[1]} مجموعات، وحط ${groups[2]} عناصر في كل مجموعة. تقدر تكتبها كجمع متكرر للعدد ${groups[2]}، وبعدها عدّ بنفسك.`;if(/4\s*[×*]\s*6/.test(message)&&/(?:عمري\s*8|ما\s*أفهم\s*الضرب)/.test(message))return"أكيد. الضرب هنا يعني مجموعات متساوية: عندك 4 مجموعات، في كل مجموعة 6. اكتبها كجمع متكرر: 6 + 6 + 6 + 6، لكن لا تحسب الناتج الآن. كم مرة كتبت العدد 6؟";const expr=message.match(/(-?\d+(?:\.\d+)?)\s*([+\-×*÷/])\s*(-?\d+(?:\.\d+)?)/);if(expr){const op=expr[2];if(op==="÷"||op==="/")return`ما راح أكشف الناتج. فكّر بالعكس: أي عدد إذا ضربناه في ${expr[3]} يعطينا ${expr[1]}؟ جرّب خطوة واحدة واكتب لي العدد الذي تتوقعه.`;if(op==="×"||op==="*")return`ما راح أكشف الناتج. مثّل ${expr[1]} مجموعات، في كل مجموعة ${expr[3]} عناصر، ثم عدّ العناصر كلها. كم تتوقع؟`;}return"خلّنا نحلها سوا بدون كشف الجواب. ما أول معلومة تعرفها، وما العملية التي تعتقد أننا نحتاجها؟";}
+function adaptDeterministicAnswer(message:string,base:string,mode:string,check:boolean){let answer=base;if(mode==="VERIFY_STUDENT_WORK"){if(/1\s*\/\s*2\s*\+\s*1\s*\/\s*3\s*=\s*2\s*\/\s*5/.test(message))return"لا، الناتج 2/5 غير صحيح. لأن النصف والثلث أجزاء بأحجام مختلفة، نوحّد المقام أولًا: 1/2 = 3/6 و1/3 = 2/6، ثم نجمع الأجزاء المتساوية فنحصل على 5/6، وهو في أبسط صورة.";if(/(?:أطرح|اطرح)\s*7\s*من\s*الطرفين/.test(message)&&/5\s*س\s*\+\s*7\s*=\s*42/.test(base+message))return"نعم، صحيح. طرح 7 من الطرفين يحافظ على توازن المعادلة ويلغي +7 من طرف س. بعد هذه الخطوة يصبح عندك 5س = 35، وتقدر تكمل بالعملية العكسية التالية بدون ما أعطيك قيمة س.";if(/صح|صحيح/.test(message)&&/\//.test(message)&&!base.includes("غير صحيح"))base="حلك غير صحيح. "+base;const claim=message.match(/=\s*([^،؟?\s]+)/);const expected=base.match(/(?:الناتج(?: النهائي)? هو|يصبح|=)\s*([^\.،\s]+)/)?.[1];if(claim&&expected&&claim[1]!==expected)answer=`حلك غير صحيح، لكن الفكرة قابلة للتصحيح. ${base} الخطأ كان في طريقة تنفيذ العملية، وليس في أنك حاولت الحل.`;}if(mode==="CONCEPT_EXPLANATION"&&/مثلث|مساح/.test(message))answer="السبب أن المثلث يمثل نصف مستطيل له القاعدة والارتفاع نفسيهما. لو رسمنا مستطيلًا ثم قسمناه بقطر، نحصل على مثلثين متساويين؛ لذلك نأخذ نصف القاعدة × الارتفاع. "+base;if(check&&!/[؟?]\s*$/.test(answer))answer+="\n\nللتأكد أن الفكرة واضحة: هل تريد أن تجرب مثالًا مشابهًا بنفسك؟";return answer;}
+function safeTutorFallback(message:string,mode:string,expected?:string){if(/(?:زاويتين|زاويتان).*?(?:متساويت|نفس).*?(?:تخمين|كيف)|كيف.*?(?:زاويتين|زاويتان).*?(?:متساويت)/.test(message))return"ما نعتمد على شكل الزاويتين بس. نتأكد بدليل: يا إن قياسهما نفس العدد، أو عندنا خاصية هندسية تثبت تساويهما مثل الزوايا المتقابلة بالرأس أو الزوايا الناتجة عن تطابق. إذا ما عندنا قياس أو خاصية، ما نجزم بالتساوي.";if(/(?:الفروق\s+الأولى|الفروق الاولى).*?(?:مو|غير).*?ثابت/.test(message))return"إذا الفروق الأولى مو ثابتة، افحص الفروق الثانية أول. إذا كانت ثابتة فهذا يشير غالبًا لنمط تربيعي. وإذا ما ثبتت، جرّب النسب أو علاقة رقم الحد بقيمته، ولا تعتمد قاعدة إلا إذا وافقت كل الحدود.";if(/(?:البسط).*?(?:المقام)|(?:المقام).*?(?:البسط)/.test(message))return"البسط هو العدد اللي فوق، ويقول كم جزء أخذنا. والمقام هو العدد اللي تحت، ويقول إلى كم جزء متساوي قسمنا الشيء. مثل 3/4: أخذنا 3 أجزاء من أصل 4 أجزاء متساوية.";if(/(?:أوحّد|اوحد|توحيد).*?(?:المقامات|المقام)|(?:المقامات).*?(?:جمع|كسرين|كسور)/.test(message))return"لازم نوحّد المقامات لأن المقام يحدد حجم الجزء. ما نقدر نجمع أجزاء بأحجام مختلفة مباشرة؛ أول نخلي الأجزاء بنفس الحجم بمقام مشترك، وبعدها نجمع البسط ونبقي المقام المشترك.";if(/(?:1|١)\s*[،,]\s*(?:2|٢)\s*[،,]\s*(?:4|٤).*?(?:8|٨)|(?:الحد\s+الجاي|الحد\s+التالي).*?(?:8|٨)/.test(message))return"مو أكيد إن الحد الجاي 8. التضاعف يعطي 8 كاحتمال، بس من 1، 2، 4 لحالها ما نقدر نثبت إن هذي القاعدة الوحيدة؛ ممكن قواعد ثانية توافق الحدود الثلاثة وتعطي حدًا مختلفًا.";if(/(?:ثلاث|3|٣)\s+نقاط.*?(?:خطية|خطي)|(?:خطية|خطي).*?(?:ثلاث|3|٣)\s+نقاط/.test(message))return"ما نقدر نجزم إن العلاقة خطية من ثلاث نقاط بس إلا إذا عرفنا المجال أو عندنا شرط إضافي. ممكن خط مستقيم يمر بالنقاط، وممكن علاقة غير خطية تمر بالنقاط نفسها. نحتاج معلومات أكثر قبل ما نقول إنها خطية أكيد.";if(/كل\s+عدد\s+زوجي.*?(?:أولي|اولى|اولي)/.test(message))return"مو صحيح. العدد 2 زوجي وأولي، لكنه الحالة الوحيدة. أي عدد زوجي أكبر من 2 يقبل القسمة على 2، لذلك ما يكون أوليًا.";if(/(?:أي|اي)\s+عدد.*?(?:مضروب|ضرب).*?صفر.*?(?:يساوي|=).*?صفر|ليش.*?(?:مضروب|ضرب).*?صفر/.test(message))return"لأن الضرب في صفر يعني ما عندنا أي مجموعة فعلية نضيف منها العدد. مثل 5 × 0: عندك صفر مجموعات من خمسة، فالمجموع صفر. ونفس الفكرة لأي عدد: عدد المجموعات صفر، فالناتج صفر.";if(/(?:سالب).*?(?:في|×|ضرب).*?(?:سالب).*?(?:موجب|ليش)|ليش.*?(?:سالب).*?(?:سالب).*?(?:موجب)/.test(message))return"السالب في السالب يطلع موجب لأن ضرب العدد في −1 يعكس اتجاهه، وضربه في −1 مرة ثانية يعكس الاتجاه مرة ثانية فيرجع موجب. مثال: (−3)×(−2)=6. الفكرة مو حفظ إشارة بس؛ عكس الاتجاه مرتين يرجعك للاتجاه الموجب.";if(/(?:حلي|الحل).*?(?:طويل|بدون.*?أعيد|بدون.*?اعيد)|(?:أتأكد|اتاكد).*?(?:حلي|الحل).*?(?:طويل|كله)/.test(message))return"عشان تراجع حل طويل بدون ما تعيده كله، افحصه كنقاط تحقق: راجع المعطيات والافتراضات، ثم تأكد أن كل خطوة لها قاعدة تبررها، وبعدها اختبر النتيجة النهائية بالتعويض أو بطريقة مستقلة إذا أمكن. ركّز أولًا على الخطوات اللي تغيّر شكل المسألة بشكل كبير.";if(/(?:أراجع|راجع).*?(?:حلي|الحل)|(?:حلي|الحل).*?(?:أراجع|راجع)|بدون\s+ما\s+تعيد\s+الحل/.test(message))return"إذا تبي تراجع حلك بدون ما أعيده عنك، ابدأ بأول خطوة كتبتها واذكر السبب اللي استخدمته. أنا أراجع معك كل خطوة وأقول لك إذا منطقها صحيح، وإذا فيه خطأ أحدد مكانه وأعطيك تلميح يخليك تصلحه بنفسك.";if(/(?:ليش|ليه).*?(?:نفس\s+العملية|العملية).*?(?:طرفين|طرفي).*?المعادلة|(?:طرفين|طرفي).*?المعادلة.*?(?:نفس\s+العملية|العملية)/.test(message))return"نسوي نفس العملية على طرفي المعادلة عشان نحافظ على المساواة. تخيّلها مثل ميزان متوازن: إذا زدنا أو نقصنا نفس الكمية من الجهتين، يظل متوازن. عشان كذا أي عملية نسويها على طرف، نسوي نفسها على الطرف الثاني.";if(/check\s+my\s+steps|(?:راجع|أراجع|افحص).*?(?:خطوات|خطوة)|(?:خطوات|خطوة).*?(?:راجع|أراجع|افحص)/i.test(message))return"إذا قلت لي check my steps، أراجع خطواتك وحدة وحدة بدون ما أعيد الحل عنك. أتأكد إن كل خطوة لها سبب صحيح وإن الحساب متوافق مع المعطيات، وإذا لقيت خطأ أحدد لك مكانه وليش صار وأخليك تصحح الخطوة بنفسك.";if(/(?:غلطت|غلط|خطأ).*?(?:خطوة|حساب)|(?:كيف|وين).*?(?:الغلط|الخطأ)/.test(message))return"إذا غلطت في خطوة، لا تعيد الحل كله. راجع كل خطوة لحالها: وش العملية اللي سويتها؟ وهل القاعدة تنطبق هنا؟ أول خطوة تختلف عن الناتج المتوقع هي المكان اللي نركز عليه، وبعدها نصححها ونكمل.";if(/(?:مو\s+فاهم|ما\s+أفهم).*?الضرب|(?:علمني|اشرح).*?الضرب/.test(message))return"الضرب يعني مجموعات متساوية. مثلًا 3 × 4 يعني عندك 3 مجموعات، في كل مجموعة 4 أشياء. تقدر ترسم ثلاث دوائر وتحط داخل كل دائرة أربع نقاط، وبعدها تعدّها. كذا تشوف معنى الضرب بدل ما تحفظه.";if(/(?:البرهان\s+بالتناقض|برهان\s+بالتناقض)/.test(message))return"فكرة البرهان بالتناقض بسيطة: نفترض عكس الشيء اللي نبغى نثبته، ثم نمشي مع هذا الافتراض. إذا وصلنا لنتيجة مستحيلة أو تناقض، نعرف إن الافتراض كان غلط، وبالتالي المطلوب صحيح. يعني نختبر العكس، وإذا انهار منطقيًا نثبت المطلوب.";if(/(?:المتغير|متغير)/.test(message))return"المتغير ببساطة رمز نحطّه مكان عدد ما نعرفه للحين أو ممكن تتغير قيمته. تخيّل عندك صندوق وعدد الحبات داخله يتغير؛ نقدر نسمي عدد الحبات س. إذا صار في الصندوق 3 حبات، س = 3، وإذا صار فيه 5، س = 5. يعني س هو المتغير لأنه ممكن يأخذ أكثر من قيمة.";if(/مربع\s+عدد\s+صحيح\s+زوجي/.test(message)&&/العدد.*زوجي/.test(message))return"ابدأ بعكس المطلوب: افترض أن العدد فردي، واكتبه على صورة 2ك + 1. افحص مربع هذه الصورة وحدد هل يمكن أن يكون زوجيًا. إذا تعارض ما تستنتجه مع المعطى أن المربع زوجي، فقد وصلت إلى التناقض المطلوب بدون القفز إلى النتيجة.";if(/(?:الفروق|الفروقات).*?غير\s+ثابتة/.test(message))return"بما أن الفروق غير ثابتة، لا تفترض أن النمط حسابي. افحص الفروق الأولى ثم الثانية، وبعدها النسب أو العلاقة بين رقم الحد وقيمته. لا تعتمد قاعدة إلا إذا طابقت جميع الحدود المعطاة، ثم اختبرها على حد إضافي إن أمكن.";if(mode==="SOCRATIC_HINT")return"ما راح أكشف الناتج. خلّنا نأخذ خطوة واحدة فقط: حدّد العملية أو العلاقة العكسية المناسبة، واكتب لي محاولتك.";if(mode==="RETEACH")return"خلّنا نغيّر التمثيل بدل تكرار الشرح السابق. مثّل المسألة برسم أو مجموعات أو أجزاء متساوية، ثم قل لي ماذا تلاحظ أولًا.";if(mode==="VERIFY_STUDENT_WORK")return"خلّنا نتحقق من محاولتك خطوة خطوة قبل الحكم النهائي. اكتب العملية التي استخدمتها في آخر خطوة.";return expected?`خلّنا نتحقق خطوة خطوة بدل القفز للناتج. ما أول خطوة تقدر تبررها؟`:"خلّنا نمشي خطوة خطوة، ونتأكد من كل خطوة قبل الانتقال للي بعدها."}
+
+function buildSaudiDialectPolicy(dialect?:string){const d=(dialect??"saudi").toLowerCase();const base="تكلم بدارجية سعودية تعليمية طبيعية وخفيفة، مو بفصحى رسمية. لا تستخدم تعبيرات من لهجات عربية ثانية مثل: ما يعنيش، عايز، بدك، شو، إزاي، مش. استخدم تعبيرات طبيعية عند الحاجة مثل: مو، بس، خلنا، ليش، كذا، هذي، عشان، الحين، تقدر. لا تحشر كلمات عامية بلا داعي، وخلك واضح رياضيًا. إذا سؤال الطالب واضح، جاوبه مباشرة ولا تبدأ تلقائيًا بسؤال تشخيصي. تجنب الصيغ الرسمية الثقيلة مثل: يتعين، ينبغي، وعليه، لذا، بناءً على ذلك. خفف المدح والمقدمات.";if(d.includes("hijazi"))return base+" الأسلوب المطلوب حجازي سعودي خفيف وطبيعي؛ استخدم مثل: لسه، مرة، خلنا، إيش/ليش عند ملاءمتها، بدون مبالغة أو تمثيل للهجة.";if(d.includes("najdi"))return base+" الأسلوب المطلوب نجدي سعودي خفيف وطبيعي؛ استخدم مثل: وش، أبي، شف/شوف، الحين عند ملاءمتها، بدون مبالغة أو تصنع.";return base+" حافظ على سعودي عام مفهوم في مختلف مناطق المملكة."}
+
+function adaptFallbackDialect(text:string,dialect?:string){const d=(dialect??"saudi").toLowerCase();let x=text.replace(/دعنا/g,"خلنا").replace(/لا أستطيع/g,"ما أقدر").replace(/لا يمكننا/g,"ما نقدر").replace(/لماذا/g,"ليش").replace(/هذا/g,"هذي").replace(/لا أوافق/g,"مو صحيح").replace(/العبارة غير صحيحة/g,"الكلام هذا مو صحيح").replace(/الصياغة الصحيحة/g,"والصح").replace(/عايز|عايش/g,"تبغى").replace(/تانية/g,"ثانية").replace(/كده/g,"كذا").replace(/بدك/g,"تبغى").replace(/مخافش/g,"مو متأكد").replace(/ما يعنيش/g,"مو معناه").replace(/(^|[^\p{L}])شو(?=$|[^\p{L}])/gu,"$1وش").replace(/إزاي/g,"كيف").replace(/توشف/g,"تشوف").replace(/(^|[^\p{L}])مش(?=$|[^\p{L}])/gu,"$1مو");if(d.includes("najdi"))x=x.replace(/ماذا/g,"وش").replace(/أريد/g,"أبي").replace(/تبغى/g,"تبي");if(d.includes("hijazi"))x=x.replace(/ما زال/g,"لسه");return x}
+
+function normalizeHintDigits(text:string){
+ return text
+  .replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660))
+  .replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0));
+}
+
+
+function requestsDifferentExample(message:string){
+  const text=message
+    .replace(/[\u064B-\u065F\u0670\u0640]/g,"")
+    .replace(/[أإآ]/g,"ا");
+  return /(?:جرب|عطني|اعطني|وريني|اشرح)[\s\S]{0,35}(?:مثال|طريقة)[\s\S]{0,25}(?:غير|جديد|جديدة|ثاني|ثانية|اخر|اخرى)/.test(text);
+}

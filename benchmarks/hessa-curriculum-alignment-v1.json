@@ -1,0 +1,66 @@
+[
+  {
+    "id": "g1-add-concept",
+    "grade": 1,
+    "skillId": "g1-add-10",
+    "prompt": "مع سارة 2 مكعبات وأضفنا 3 مكعبات. كم صار معها؟",
+    "expected": "5",
+    "kind": "word-problem"
+  },
+  {
+    "id": "g2-sub-concept",
+    "grade": 2,
+    "skillId": "g2-add-sub-100",
+    "prompt": "لديه 18 كرة ثم أعطى 5 كرات. كم بقي؟",
+    "expected": "13",
+    "kind": "word-problem"
+  },
+  {
+    "id": "g3-mul-concept",
+    "grade": 3,
+    "skillId": "g3-multiply",
+    "prompt": "4 × 3",
+    "expected": "12",
+    "kind": "arithmetic"
+  },
+  {
+    "id": "g3-div-concept",
+    "grade": 3,
+    "skillId": "g3-division",
+    "prompt": "20 ÷ 5",
+    "expected": "4",
+    "kind": "arithmetic"
+  },
+  {
+    "id": "g5-frac-concept",
+    "grade": 5,
+    "skillId": "g5-fractions-ops",
+    "prompt": "1/3 + 1/6",
+    "expected": "1/2",
+    "kind": "fraction"
+  },
+  {
+    "id": "g6-percent-concept",
+    "grade": 6,
+    "skillId": "g6-ratios",
+    "prompt": "30% من 50",
+    "expected": "15",
+    "kind": "percentage"
+  },
+  {
+    "id": "g6-algebra-concept",
+    "grade": 6,
+    "skillId": "g6-algebra",
+    "prompt": "2س + 4 = 14",
+    "expected": "5",
+    "kind": "equation"
+  },
+  {
+    "id": "g6-geometry-concept",
+    "grade": 6,
+    "skillId": "g6-geometry",
+    "prompt": "مساحة مثلث قاعدته 8 وارتفاعه 5",
+    "expected": "20",
+    "kind": "geometry"
+  }
+]

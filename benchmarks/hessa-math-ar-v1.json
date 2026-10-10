@@ -1,0 +1,114 @@
+[
+  {
+    "id": "arith-ar-1",
+    "grade": "3",
+    "prompt": "٣ + ٥ كم؟",
+    "expected": "8",
+    "skill": "addition"
+  },
+  {
+    "id": "arith-ar-2",
+    "grade": "4",
+    "prompt": "٢٤ ÷ ٦ كم؟",
+    "expected": "4",
+    "skill": "division"
+  },
+  {
+    "id": "fraction-1",
+    "grade": "5",
+    "prompt": "1/2 + 1/4",
+    "expected": "3/4",
+    "skill": "fractions"
+  },
+  {
+    "id": "fraction-2",
+    "grade": "5",
+    "prompt": "3/4 - 1/4",
+    "expected": "1/2",
+    "skill": "fractions"
+  },
+  {
+    "id": "percent-1",
+    "grade": "6",
+    "prompt": "25% من 80",
+    "expected": "20",
+    "skill": "percentage"
+  },
+  {
+    "id": "ratio-1",
+    "grade": "6",
+    "prompt": "بسّط النسبة 8:12",
+    "expected": "2:3",
+    "skill": "ratio"
+  },
+  {
+    "id": "eq-1",
+    "grade": "6",
+    "prompt": "س + 7 = 12",
+    "expected": "5",
+    "skill": "equation"
+  },
+  {
+    "id": "eq-2",
+    "grade": "6",
+    "prompt": "س - 4 = 9",
+    "expected": "13",
+    "skill": "equation"
+  },
+  {
+    "id": "geo-rect-area-1",
+    "grade": "5",
+    "prompt": "مساحة مستطيل طوله 8 وعرضه 3",
+    "expected": "24",
+    "skill": "geometry"
+  },
+  {
+    "id": "geo-rect-perim-1",
+    "grade": "5",
+    "prompt": "محيط مستطيل طوله 7 وعرضه 4",
+    "expected": "22",
+    "skill": "geometry"
+  },
+  {
+    "id": "geo-square-area-1",
+    "grade": "4",
+    "prompt": "مساحة مربع طول ضلعه 6",
+    "expected": "36",
+    "skill": "geometry"
+  },
+  {
+    "id": "geo-triangle-area-1",
+    "grade": "6",
+    "prompt": "مساحة مثلث قاعدته 10 وارتفاعه 4",
+    "expected": "20",
+    "skill": "geometry"
+  },
+  {
+    "id": "eq-axb-1",
+    "grade": "7",
+    "prompt": "2س + 3 = 11",
+    "expected": "4",
+    "skill": "algebra"
+  },
+  {
+    "id": "eq-axb-2",
+    "grade": "7",
+    "prompt": "3س - 6 = 9",
+    "expected": "5",
+    "skill": "algebra"
+  },
+  {
+    "id": "word-add-1",
+    "grade": "2",
+    "prompt": "معه 4 أقلام ثم اشترى 3 أقلام، كم أصبح معه؟",
+    "expected": "7",
+    "skill": "word-problem"
+  },
+  {
+    "id": "word-sub-1",
+    "grade": "2",
+    "prompt": "لديه 9 تفاحات ثم أعطى صديقه 2، كم بقي معه؟",
+    "expected": "7",
+    "skill": "word-problem"
+  }
+]

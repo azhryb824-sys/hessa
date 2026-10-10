@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { NextResponse } from "next/server";
+import { requireStudent } from "@/lib/auth/session";
 
 export async function POST(request: Request) {
 try {
@@ -18,11 +19,7 @@ if (!subject || !Number.isInteger(order) || order < 1) {
   );
 }
 
-const student = await prisma.user.findUnique({
-  where: {
-    email: "student@hessa.local",
-  },
-});
+const student = await requireStudent();
 
 if (!student) {
   return NextResponse.json(
